@@ -1,0 +1,16 @@
+{
+  "name": "ThinkingOut",
+  "short_name": "ThinkingOut",
+  "description": "Think out loud, get your thoughts back clearly, and put what matters on the calendar.",
+  "start_url": "./#/talk",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f6fb",
+  "theme_color": "#6d5dfc",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [{ "name": "Start talking", "url": "./#/talk?start=1" }]
+}
