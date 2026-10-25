@@ -190,6 +190,12 @@ details[open] > summary { margin-bottom: 10px; }
 .dot.task { background: var(--accent); }
 .dot.done { background: var(--good); }
 .dot.thought { background: var(--warn); }
+.dot.google { background: #4285f4; }
+.item.google .item-body { color: inherit; text-decoration: none; }
+.g-mark { width: 20px; height: 20px; flex: none; border-radius: 5px; background: #4285f4; color: #fff; font-size: 0.7rem; font-weight: 700; display: grid; place-items: center; }
+.sync-bar { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 8px 8px 14px; }
+.steps { margin: 0; padding-left: 1.3em; }
+.steps li { margin: 0.4em 0; }
 .legend { margin: 0; }
 .items { list-style: none; padding: 0; }
 .item { display: flex; align-items: center; gap: 10px; padding: 4px 0; }

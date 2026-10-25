@@ -43,6 +43,26 @@ export interface CalendarItem {
   notes: string;
   done: boolean;
   sessionId: string | null;
+  googleId?: string | null; // event id once pushed to Google Calendar
+  dirty?: boolean; // changed locally since the last push
+}
+
+// An event that lives in Google Calendar and wasn't made here.
+export interface GoogleEvent {
+  id: string;
+  title: string;
+  start: string; // YYYY-MM-DD
+  end: string; // YYYY-MM-DD, inclusive
+  time: string | null; // HH:MM, null for all-day
+  link: string;
+}
+
+export interface GoogleSync {
+  clientId: string;
+  connected: boolean;
+  lastSync: string | null; // ISO
+  events: GoogleEvent[];
+  pendingDeletes: string[]; // Google event ids to delete on next push
 }
 
 export interface Settings {
@@ -55,6 +75,7 @@ interface Data {
   topics: Topic[];
   items: CalendarItem[];
   settings: Settings;
+  google: GoogleSync;
 }
 
 const KEY = "thinkingout:v1";
@@ -64,6 +85,7 @@ const empty = (): Data => ({
   topics: [],
   items: [],
   settings: { apiKey: "", model: "claude-opus-5-5" },
+  google: { clientId: "", connected: false, lastSync: null, events: [], pendingDeletes: [] },
 });
 
 function load(): Data {
@@ -71,7 +93,7 @@ function load(): Data {
     const raw = localStorage.getItem(KEY);
     if (!raw) return empty();
     const parsed = JSON.parse(raw) as Partial<Data>;
-    return { ...empty(), ...parsed, settings: { ...empty().settings, ...parsed.settings } };
+    return { ...empty(), ...parsed, settings: { ...empty().settings, ...parsed.settings }, google: { ...empty().google, ...parsed.google } };
   } catch {
     return empty();
   }
@@ -93,14 +115,32 @@ export function save() {
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 export function exportJson(): string {
-  return JSON.stringify({ ...data, settings: { ...data.settings, apiKey: "" } }, null, 2);
+  const { google: _google, ...rest } = data;
+  return JSON.stringify({ ...rest, settings: { ...data.settings, apiKey: "" } }, null, 2);
 }
 
 export function importJson(text: string) {
   const incoming = JSON.parse(text) as Partial<Data>;
   data.sessions = incoming.sessions ?? [];
   data.topics = incoming.topics ?? [];
-  data.items = incoming.items ?? [];
+  // Restored items are re-pushed as new events if Google is connected on this device.
+  data.items = (incoming.items ?? []).map((i) => ({ ...i, googleId: null, dirty: true }));
+  save();
+}
+
+export function addItem(item: Omit<CalendarItem, "id" | "done">) {
+  data.items.push({ ...item, id: uid(), done: false, dirty: true });
+  save();
+}
+
+export function updateItem(item: CalendarItem, changes: Partial<CalendarItem>) {
+  Object.assign(item, changes, { dirty: true });
+  save();
+}
+
+export function removeItem(item: CalendarItem) {
+  data.items = data.items.filter((x) => x.id !== item.id);
+  if (item.googleId) data.google.pendingDeletes.push(item.googleId);
   save();
 }
 

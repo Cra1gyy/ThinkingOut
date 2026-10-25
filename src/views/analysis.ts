@@ -1,20 +1,11 @@
 import { bulletList, h, toast } from "../dom";
 import { prettyDate } from "../dates";
-import { data, save, uid, type Session } from "../store";
+import { addItem, type Session } from "../store";
 
 export function addActionToCalendar(session: Session, index: number, date: string) {
   const action = session.analysis!.actions[index];
-  data.items.push({
-    id: uid(),
-    title: action.text,
-    date,
-    time: action.time,
-    notes: session.analysis!.title,
-    done: false,
-    sessionId: session.id,
-  });
   session.addedActions = [...session.addedActions, index];
-  save();
+  addItem({ title: action.text, date, time: action.time, notes: session.analysis!.title, sessionId: session.id });
   toast(`Added to ${prettyDate(date)}`);
 }
 

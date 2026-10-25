@@ -1,6 +1,7 @@
-import { go, h } from "../dom";
+import { go, h, toast } from "../dom";
+import { eventsOn, googleStatus, sync } from "../google";
 import { addDays, isoDate, localDayOf, parseIso, prettyDate, todayIso } from "../dates";
-import { data, save, sessionById, uid, type CalendarItem } from "../store";
+import { addItem, data, removeItem, sessionById, updateItem, type CalendarItem, type GoogleEvent } from "../store";
 
 const byTime = (a: CalendarItem, b: CalendarItem) => (a.time ?? "99").localeCompare(b.time ?? "99");
 
@@ -14,8 +15,7 @@ function itemRow(item: CalendarItem) {
       checked: item.done,
       "aria-label": "Done",
       onchange: () => {
-        item.done = !item.done;
-        save();
+        updateItem(item, { done: !item.done });
       },
     }),
     h(
@@ -32,8 +32,7 @@ function itemRow(item: CalendarItem) {
         class: "ghost small",
         "aria-label": "Delete",
         onclick: () => {
-          data.items = data.items.filter((x) => x.id !== item.id);
-          save();
+          removeItem(item);
         },
       },
       "✕",
@@ -41,8 +40,60 @@ function itemRow(item: CalendarItem) {
   );
 }
 
+function googleRow(ev: GoogleEvent) {
+  return h(
+    "li",
+    { class: "item google" },
+    h("span", { class: "g-mark", title: "From Google Calendar" }, "G"),
+    h("a", { class: "item-body", href: ev.link, target: "_blank", rel: "noopener" }, h("span", null, ev.time ? h("strong", null, `${ev.time} `) : null, ev.title)),
+  );
+}
+
+// Shown above the calendar: connect prompt, or sync status and a sync button.
+function syncBar() {
+  const status = googleStatus();
+  if (!status.connected) {
+    return data.google.clientId
+      ? null
+      : h("p", { class: "muted small" }, "Want your Google Calendar here too? Set it up in ", h("a", { href: "#/settings" }, "Settings"), ".");
+  }
+  const btn = h(
+    "button",
+    {
+      class: "small",
+      onclick: async () => {
+        btn.disabled = true;
+        btn.textContent = "Syncing…";
+        try {
+          await sync(true);
+          toast("Synced with Google Calendar");
+        } catch (err) {
+          toast(err instanceof Error ? err.message : String(err));
+          btn.disabled = false;
+          btn.textContent = "Sync now";
+        }
+      },
+    },
+    status.signedIn ? "Sync now" : "Sign in to sync",
+  );
+  const pending = data.items.filter((i) => i.dirty).length + data.google.pendingDeletes.length;
+  return h(
+    "div",
+    { class: "row between sync-bar" },
+    h(
+      "span",
+      { class: "muted small" },
+      "Google Calendar · ",
+      status.lastSync ? `synced ${new Date(status.lastSync).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}` : "not synced yet",
+      pending ? ` · ${pending} change${pending === 1 ? "" : "s"} waiting` : "",
+    ),
+    btn,
+  );
+}
+
 function dayAgenda(day: string) {
   const items = data.items.filter((i) => i.date === day).sort(byTime);
+  const gEvents = eventsOn(day);
   const sessions = data.sessions.filter((s) => localDayOf(s.createdAt) === day);
   const title = h("input", { placeholder: "Add something…", required: true });
   const time = h("input", { type: "time", "aria-label": "Time" });
@@ -50,7 +101,8 @@ function dayAgenda(day: string) {
     "section",
     { class: "block" },
     h("h3", null, day === todayIso() ? `Today · ${prettyDate(day)}` : prettyDate(day)),
-    items.length ? h("ul", { class: "items" }, items.map(itemRow)) : h("p", { class: "muted" }, "Nothing planned."),
+    gEvents.length ? h("ul", { class: "items" }, gEvents.map(googleRow)) : null,
+    items.length ? h("ul", { class: "items" }, items.map(itemRow)) : !gEvents.length ? h("p", { class: "muted" }, "Nothing planned.") : null,
     sessions.length
       ? h(
           "div",
@@ -65,8 +117,7 @@ function dayAgenda(day: string) {
         class: "row add",
         onsubmit: (e: Event) => {
           e.preventDefault();
-          data.items.push({ id: uid(), title: title.value.trim(), date: day, time: time.value || null, notes: "", done: false, sessionId: null });
-          save();
+          addItem({ title: title.value.trim(), date: day, time: time.value || null, notes: "", sessionId: null });
         },
       },
       title,
@@ -93,6 +144,7 @@ export function calendarView(params: URLSearchParams): HTMLElement {
       "div",
       { class: "view" },
       h("header", { class: "row between" }, h("h1", null, "Calendar"), switcher),
+      syncBar(),
       overdue.length
         ? h("section", { class: "block loops" }, h("h3", null, "Carried over"), h("ul", { class: "items" }, overdue.map((i) => [h("li", { class: "muted small" }, prettyDate(i.date)), itemRow(i)])))
         : null,
@@ -113,12 +165,13 @@ export function calendarView(params: URLSearchParams): HTMLElement {
     const d = parseIso(day);
     const items = data.items.filter((i) => i.date === day);
     const open = items.filter((i) => !i.done).length;
+    const hasGoogle = eventsOn(day).length > 0;
     const cls = ["cell", d.getMonth() !== sel.getMonth() && "other", day === todayIso() && "today", day === selected && "sel"].filter(Boolean).join(" ");
     return h(
       "button",
       { class: cls, onclick: () => go(link(day)) },
       h("span", null, d.getDate()),
-      h("span", { class: "dots" }, open ? h("i", { class: "dot task" }) : null, items.length && !open ? h("i", { class: "dot done" }) : null, thoughtDays.has(day) ? h("i", { class: "dot thought" }) : null),
+      h("span", { class: "dots" }, open ? h("i", { class: "dot task" }) : null, items.length && !open ? h("i", { class: "dot done" }) : null, hasGoogle ? h("i", { class: "dot google" }) : null, thoughtDays.has(day) ? h("i", { class: "dot thought" }) : null),
     );
   });
 
@@ -126,6 +179,7 @@ export function calendarView(params: URLSearchParams): HTMLElement {
     "div",
     { class: "view" },
     h("header", { class: "row between" }, h("h1", null, "Calendar"), switcher),
+    syncBar(),
     h(
       "div",
       { class: "row between month-nav" },
@@ -135,7 +189,7 @@ export function calendarView(params: URLSearchParams): HTMLElement {
     ),
     h("div", { class: "grid weekdays" }, ["M", "T", "W", "T", "F", "S", "S"].map((d) => h("span", null, d))),
     h("div", { class: "grid" }, cells),
-    h("p", { class: "legend muted small" }, h("i", { class: "dot task" }), " to do  ", h("i", { class: "dot done" }), " all done  ", h("i", { class: "dot thought" }), " thought session"),
+    h("p", { class: "legend muted small" }, h("i", { class: "dot task" }), " to do  ", h("i", { class: "dot done" }), " all done  ", h("i", { class: "dot thought" }), " thought session", googleStatus().connected ? [" ", h("i", { class: "dot google" }), " Google"] : null),
     dayAgenda(selected),
   );
 }

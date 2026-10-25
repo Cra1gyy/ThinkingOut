@@ -1,5 +1,6 @@
 import "./style.css";
 import { h } from "./dom";
+import { sync, syncSoon } from "./google";
 import { onChange } from "./store";
 import { calendarView } from "./views/calendar";
 import { settingsView } from "./views/settings";
@@ -57,8 +58,16 @@ window.addEventListener("hashchange", () => {
 // The talk view manages its own live state; everything else just re-renders on save.
 onChange(() => {
   if (route().name !== "talk") render();
+  syncSoon();
 });
 render();
+
+// Quiet background sync when the app opens or comes back to the foreground.
+// It only runs while a Google sign-in is still valid; otherwise the Calendar
+// screen shows a button to sign in again.
+const backgroundSync = () => sync(false).catch(() => {});
+backgroundSync();
+document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && backgroundSync());
 
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
   navigator.serviceWorker.register("./sw.js");

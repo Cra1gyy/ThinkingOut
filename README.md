@@ -27,6 +27,12 @@ npm run build    # production build in dist/
 
 Then open **Settings** in the app and paste in a Claude API key from https://console.anthropic.com. The key stays in your browser's local storage and is only ever sent to Anthropic.
 
+### Google Calendar (optional)
+
+Settings → Google Calendar connects your main Google calendar. Your ThinkingOut to-dos are added as events: all-day if they have no time, one hour long if they do. Your Google events show in the Calendar tab with a blue **G**. Sync works both ways, so moving or deleting one of your to-dos in Google changes it here too. Ticked-off items get a ✓ in Google.
+
+It runs entirely in the browser, so it needs a free OAuth Client ID from your own Google Cloud project. The app shows the steps. While the Google project is in "Testing" mode, Google shows an "unverified app" warning when you sign in, which is expected for your own app. Sign-ins last about an hour; after that, the Calendar screen shows a **Sign in to sync** button, and changes you make in the meantime are saved and sent on the next sync.
+
 ### Put it on your phone
 
 1. Push to `main`. The included GitHub Action builds the app and publishes it to GitHub Pages. You need to turn this on once under **Settings → Pages → Source: GitHub Actions**.
