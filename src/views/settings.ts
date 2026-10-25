@@ -1,4 +1,5 @@
 import { h, toast } from "../dom";
+import { disconnect, googleStatus, sync } from "../google";
 import { data, exportJson, importJson, save } from "../store";
 
 const MODELS = [
@@ -59,6 +60,7 @@ export function settingsView(): HTMLElement {
         "Save",
       ),
     ),
+    googleSection(),
     h(
       "section",
       { class: "block" },
@@ -95,5 +97,76 @@ export function settingsView(): HTMLElement {
       ),
       h("label", null, "Restore from backup", file),
     ),
+  );
+}
+
+function googleSection() {
+  const status = googleStatus();
+  const clientId = h("input", { value: data.google.clientId, placeholder: "…apps.googleusercontent.com", autocomplete: "off" });
+  const connect = h(
+    "button",
+    {
+      class: "primary",
+      onclick: async () => {
+        data.google.clientId = clientId.value.trim();
+        save();
+        connect.disabled = true;
+        connect.textContent = "Connecting…";
+        try {
+          await sync(true);
+          toast("Google Calendar connected");
+        } catch (err) {
+          toast(err instanceof Error ? err.message : String(err));
+          connect.disabled = false;
+          connect.textContent = "Connect Google Calendar";
+        }
+      },
+    },
+    "Connect Google Calendar",
+  );
+
+  if (status.connected) {
+    return h(
+      "section",
+      { class: "block form" },
+      h("h3", null, "Google Calendar"),
+      h("p", { class: "small" }, "Connected. Your ThinkingOut to-dos go onto your main Google calendar, and your Google events show up in the Calendar tab. Edits sync both ways."),
+      h(
+        "div",
+        { class: "row" },
+        h("a", { class: "button", href: "#/calendar" }, "Open calendar"),
+        h(
+          "button",
+          {
+            class: "ghost danger",
+            onclick: () => {
+              if (!confirm("Stop syncing with Google Calendar? Events already there stay put.")) return;
+              disconnect();
+              toast("Disconnected");
+            },
+          },
+          "Disconnect",
+        ),
+      ),
+    );
+  }
+
+  const origin = location.origin;
+  return h(
+    "section",
+    { class: "block form" },
+    h("h3", null, "Google Calendar"),
+    h("p", { class: "small" }, "Sync your to-dos to Google Calendar and see your Google events here. It needs a free Google Cloud Client ID, set up once (about 5 minutes):"),
+    h(
+      "ol",
+      { class: "steps small" },
+      h("li", null, "Go to ", h("a", { href: "https://console.cloud.google.com/projectcreate", target: "_blank", rel: "noopener" }, "console.cloud.google.com"), " and create a project (any name)."),
+      h("li", null, "Turn on the ", h("a", { href: "https://console.cloud.google.com/apis/library/calendar-json.googleapis.com", target: "_blank", rel: "noopener" }, "Google Calendar API"), " for it."),
+      h("li", null, "Under ", h("strong", null, "Google Auth Platform"), ", set up the app as ", h("strong", null, "External"), ", then under ", h("strong", null, "Audience"), " add your own Gmail address as a test user."),
+      h("li", null, "Under ", h("strong", null, "Clients"), ", create a ", h("strong", null, "Web application"), " client. Under ", h("strong", null, "Authorised JavaScript origins"), " add:", h("code", { class: "copy" }, origin)),
+      h("li", null, "Copy the Client ID into the box below and tap Connect."),
+    ),
+    h("label", null, "Google OAuth Client ID", clientId),
+    connect,
   );
 }
