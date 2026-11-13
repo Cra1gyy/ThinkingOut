@@ -1,7 +1,8 @@
-import { analyse, describeError } from "../ai";
+import { isAnalysing, startAnalysis } from "../ai";
+import { imageUrl, removeImages, thumb } from "../images";
 import { go, h, toast } from "../dom";
 import { localDayOf, prettyDate, prettyDateTime } from "../dates";
-import { applyAnalysis, data, noteTitle, save, sessionById, topicById, uid, type Session, type Topic } from "../store";
+import { data, noteTitle, save, sessionById, topicById, uid, type Session, type Topic } from "../store";
 import { analysisCard } from "./analysis";
 
 // The Notes tab holds two lists: notes (by topic) and the to-do list.
@@ -30,8 +31,13 @@ function noteRow(s: Session) {
   return h(
     "a",
     { class: "note-row", href: `#/note/${s.id}` },
-    h("span", { class: "muted small" }, prettyDateTime(s.createdAt)),
-    h("span", { class: "clamp" }, s.analysis?.summary ?? s.transcript),
+    h(
+      "span",
+      { class: "note-row-text" },
+      h("span", { class: "muted small" }, prettyDateTime(s.createdAt), isAnalysing(s.id) ? " · Analyzing…" : ""),
+      h("span", { class: "clamp" }, s.analysis?.summary ?? (s.transcript || "Image")),
+    ),
+    s.images?.length ? thumb(s.images[0], "note-thumb") : null,
   );
 }
 
@@ -134,23 +140,11 @@ export function noteView(id: string): HTMLElement {
   const s = sessionById(id);
   if (!s) return h("div", { class: "view" }, h("p", null, "That note was not found."), h("a", { href: "#/notes" }, "Back"));
 
+  const busy = isAnalysing(s.id);
   const sortBtn = h(
     "button",
-    {
-      class: s.analysis ? "" : "primary",
-      onclick: async () => {
-        sortBtn.disabled = true;
-        sortBtn.textContent = "Thinking it through…";
-        try {
-          applyAnalysis(s, await analyse(s));
-        } catch (err) {
-          toast(describeError(err));
-          sortBtn.disabled = false;
-          sortBtn.textContent = "Try again";
-        }
-      },
-    },
-    s.analysis ? "Re-sort" : "Make sense of it",
+    { class: s.analysis ? "" : "primary", disabled: busy, onclick: () => startAnalysis(s) },
+    busy ? "Analyzing…" : s.analysis ? "Re-sort" : "Make sense of it",
   );
 
   // Lets you re-file a note if it landed under the wrong topic.
@@ -184,9 +178,20 @@ export function noteView(id: string): HTMLElement {
     "div",
     { class: "view" },
     h("a", { href: "#/notes", class: "back" }, "‹ Notes"),
-    h("h1", null, noteTitle(s)),
+    h("h1", null, busy && !s.analysis ? "New note" : noteTitle(s)),
     h("div", { class: "row between" }, h("span", { class: "muted" }, prettyDateTime(s.createdAt)), h("label", { class: "inline" }, "Filed under ", filed)),
-    analysisCard(s),
+    s.images?.length
+      ? h(
+          "div",
+          { class: "gallery" },
+          s.images.map((id) => h("button", { class: "gallery-item", "aria-label": "Open image", onclick: () => viewImage(id) }, thumb(id, "gallery-img"))),
+        )
+      : null,
+    busy
+      ? h("div", { class: "block analysing" }, h("span", { class: "spinner" }), "Analyzing… you can leave this page; the note fills in when it's done.")
+      : editing.has(s.id)
+        ? editForm(s)
+        : analysisCard(s),
     h(
       "details",
       { class: "block" },
@@ -209,6 +214,19 @@ export function noteView(id: string): HTMLElement {
       "div",
       { class: "row" },
       sortBtn,
+      s.analysis && !busy && !editing.has(s.id)
+        ? h(
+            "button",
+            {
+              onclick: () => {
+                editing.add(s.id);
+                save();
+              },
+            },
+            "Edit",
+          )
+        : null,
+      h("button", { onclick: () => shareNote(s) }, "Share"),
       h("button", { onclick: () => go(`#/talk?topic=${s.topicId ?? ""}&start=1`) }, "Keep talking on this"),
       h(
         "button",
@@ -217,6 +235,7 @@ export function noteView(id: string): HTMLElement {
           onclick: () => {
             if (!confirm("Delete this note? Its to-dos stay on your list.")) return;
             data.sessions = data.sessions.filter((x) => x.id !== s.id);
+            removeImages(s.images ?? []);
             save();
             go("#/notes");
           },
@@ -225,4 +244,105 @@ export function noteView(id: string): HTMLElement {
       ),
     ),
   );
+}
+
+// ---- editing and sharing -------------------------------------------------
+
+const editing = new Set<string>();
+const toLines = (items: string[]) => items.join("\n");
+
+// Claude's sort isn't always right: every part of it can be corrected by hand.
+function editForm(s: Session) {
+  const a = s.analysis!;
+  const field = (label: string, value: string, rows = 3) => {
+    const input = h("textarea", { rows, value });
+    return { input, el: h("label", null, label, input) };
+  };
+  const summary = field("Summary", a.summary);
+  const next = field("One next step", a.nextStep, 2);
+  const thoughts = field("Your thoughts (one per line)", toLines(a.keyThoughts), 5);
+  const loops = field("You keep coming back to (one per line)", toLines(a.loops));
+  const decided = field("Decided (one per line)", toLines(a.decisions));
+  const open = field("Still open (one per line)", toLines(a.openQuestions));
+  const done = () => {
+    editing.delete(s.id);
+    save();
+  };
+  return h(
+    "section",
+    { class: "block form" },
+    h("h3", null, "Edit note"),
+    summary.el,
+    next.el,
+    thoughts.el,
+    loops.el,
+    decided.el,
+    open.el,
+    h(
+      "div",
+      { class: "row" },
+      h(
+        "button",
+        {
+          class: "primary",
+          onclick: () => {
+            Object.assign(a, {
+              summary: summary.input.value.trim(),
+              nextStep: next.input.value.trim(),
+              keyThoughts: lines(thoughts.input.value),
+              loops: lines(loops.input.value),
+              decisions: lines(decided.input.value),
+              openQuestions: lines(open.input.value),
+            });
+            done();
+            toast("Note updated");
+          },
+        },
+        "Save",
+      ),
+      h("button", { class: "ghost", onclick: done }, "Cancel"),
+    ),
+  );
+}
+
+export function noteMarkdown(s: Session) {
+  const a = s.analysis;
+  const list = (title: string, items: string[]) => (items.length ? `\n## ${title}\n${items.map((i) => `- ${i}`).join("\n")}\n` : "");
+  const todos = data.items.filter((i) => i.sessionId === s.id);
+  return [
+    `# ${noteTitle(s)}`,
+    `_${prettyDateTime(s.createdAt)}_`,
+    a ? `\n${a.summary}\n` : "",
+    a?.nextStep ? `**Next step:** ${a.nextStep}\n` : "",
+    a ? list("Thoughts", a.keyThoughts) : "",
+    a ? list("Keep coming back to", a.loops) : "",
+    a ? list("Decided", a.decisions) : "",
+    a ? list("Still open", a.openQuestions) : "",
+    todos.length ? `\n## To-do\n${todos.map((i) => `- [${i.done ? "x" : " "}] ${i.title}${i.date ? ` (${prettyDate(i.date)}${i.time ? ` ${i.time}` : ""})` : ""}`).join("\n")}\n` : "",
+    s.transcript ? `\n## What I said\n${s.transcript}\n` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+async function shareNote(s: Session) {
+  const text = noteMarkdown(s);
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: noteTitle(s), text });
+      return;
+    }
+  } catch (err) {
+    if ((err as Error).name === "AbortError") return; // closed the share sheet
+  }
+  await navigator.clipboard?.writeText(text);
+  toast("Copied as Markdown");
+}
+
+// Full-screen image viewer; tap anywhere to close.
+async function viewImage(id: string) {
+  const url = await imageUrl(id);
+  if (!url) return;
+  const overlay = h("div", { class: "lightbox", role: "dialog", "aria-label": "Image", onclick: () => overlay.remove() }, h("img", { src: url, alt: "" }));
+  document.body.appendChild(overlay);
 }

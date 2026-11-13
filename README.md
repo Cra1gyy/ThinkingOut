@@ -6,15 +6,16 @@ It's built for people who think by speaking rather than with an inner voice, and
 
 ## What it does
 
-- **Talk**: tap the mic and speak, or type. The words appear as you go. If you pick a topic first, its prompts show on screen.
-- **Make sense of it**: Claude turns the messy transcript into a note:
+- **Talk**: tap the mic to start and stop, or **hold it while you talk and let go to save**. You can type too. Add **screenshots or photos** from your gallery or camera, or share them in from any app. If you pick a topic first, its prompts show on screen.
+- **Saved straight away**: a capture is saved the moment you finish, and Claude sorts it in the background ("Analyzing…") while you carry on.
+- **Sorting**: Claude turns what you said and any images into a note:
   - **titled by the overarching topic** you kept talking about, and filed with your other notes on that topic (it reuses an existing topic when it's the same subject)
   - a short summary, with each separate thought as its own bullet
   - decisions, open questions and themes
   - **"You keep coming back to"**: the loops, including ones you repeated in earlier notes on the same topic
   - **One next step**: something small to do now instead of thinking more
   - to-dos, which go **straight onto your to-do list**. Dates you mention ("Friday", "next week") are worked out, and dated to-dos go on your calendar.
-- **Notes**: every note, grouped under its topic, plus your loops from the last two weeks. You can re-file a note under a different topic, or start a topic with key notes to prompt you.
+- **Notes**: every note, grouped under its topic, with image thumbnails. You can edit anything Claude wrote and share a note as Markdown, plus your loops from the last two weeks. You can re-file a note under a different topic, or start a topic with key notes to prompt you.
 - **To-do**: everything you need to do, sorted into overdue, today, upcoming and anytime. Give a to-do a date and it goes on your calendar (and Google Calendar); clear the date and it comes off again.
 - **Calendar**: a month view and a "next 7 days" agenda showing your to-dos, your Google events and the days you made notes.
 
@@ -47,6 +48,12 @@ It runs entirely in the browser, so it needs a free OAuth Client ID from your ow
 
 1. Push to `main`. The included GitHub Action builds the app and publishes it to GitHub Pages. You need to turn this on once under **Settings → Pages → Source: GitHub Actions**.
 2. Open the Pages URL on your phone and choose **Add to Home Screen**. It then runs full-screen like an app.
+
+### Share things in (Android)
+
+Once the app is installed from Chrome, **ThinkingOut** appears in the Share menu. Take a screenshot (or pick a photo, link or bit of text), tap **Share → ThinkingOut**, and it opens as a new capture ready for you to say something about it.
+
+Inspired by Nothing's Essential Space: one quick capture, saved instantly, sorted by AI in the background.
 
 ### Start from the side button
 

@@ -1,3 +1,5 @@
+import { exportImages, importImages } from "./images";
+
 // All data lives in this browser's localStorage. Nothing leaves the device
 // except the transcript text sent to Claude when you ask for it to be sorted.
 
@@ -26,6 +28,7 @@ export interface Session {
   transcript: string;
   analysis: Analysis | null;
   addedActions: number[]; // indexes of actions already put on the calendar
+  images?: string[]; // ids in images.ts (IndexedDB)
 }
 
 export interface Topic {
@@ -122,13 +125,15 @@ export function save() {
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
-export function exportJson(): string {
+export async function exportJson(): Promise<string> {
   const { google: _google, ...rest } = data;
-  return JSON.stringify({ ...rest, settings: { ...data.settings, apiKey: "" } }, null, 2);
+  const images = await exportImages(data.sessions.flatMap((s) => s.images ?? []));
+  return JSON.stringify({ ...rest, settings: { ...data.settings, apiKey: "" }, images }, null, 2);
 }
 
-export function importJson(text: string) {
-  const incoming = JSON.parse(text) as Partial<Data>;
+export async function importJson(text: string) {
+  const incoming = JSON.parse(text) as Partial<Data> & { images?: Record<string, string> };
+  if (incoming.images) await importImages(incoming.images);
   data.sessions = incoming.sessions ?? [];
   data.topics = incoming.topics ?? [];
   // Restored items are re-pushed as new events if Google is connected on this device.

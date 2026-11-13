@@ -54,11 +54,13 @@ export function costOf(model: string, u: Usage) {
 }
 
 // Throws (and spends nothing) if this request could push the month over the limit.
-export function reserve(model: string, promptChars: number, maxOutputTokens: number) {
+// `images` is how many attached images (each at most 1280px) the request carries.
+export function reserve(model: string, promptChars: number, maxOutputTokens: number, images = 0) {
   const b = budget();
   // Real text is about 4 characters per token; assume 2, plus room for the
-  // instructions and output schema the API adds.
-  const inputTokens = Math.ceil(promptChars / 2) + 4000;
+  // instructions and output schema the API adds. A 1280px image is at most
+  // about 2,200 tokens; allow 3,500 in case a model counts images differently.
+  const inputTokens = Math.ceil(promptChars / 2) + 4000 + images * 3500;
   const r = rates(model, inputTokens);
   const worst = (inputTokens * r.in + maxOutputTokens * r.out) / 1_000_000;
   if (b.spent + worst > b.limit) {

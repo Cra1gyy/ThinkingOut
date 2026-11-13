@@ -1,7 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { data, topicById, type Analysis, type Session } from "./store";
+import { toast } from "./dom";
+import { imageBase64 } from "./images";
+import { applyAnalysis, data, save, topicById, type Analysis, type Session } from "./store";
 import { todayIso } from "./dates";
 import { costOf, reserve, settle } from "./budget";
 
@@ -39,6 +41,7 @@ Your job is to give their thinking back to them with clarity:
 - Pull out each distinct thought as a clean bullet in their own spirit, not generic advice.
 - Connect the pieces: notice where separate thoughts are really the same thing, or where one answers another.
 - Be honest about loops. If they repeat a worry without new information, or if earlier sessions show the same thought, name it plainly and kindly.
+- They may attach screenshots or photos of things they want to remember. Treat them as part of what they're capturing: say what matters in them in plain words, and pull out dates, events, tickets, names and to-dos. If there's an image but little or nothing said, the note is about the image.
 - Name the one overarching topic the session keeps coming back to. It becomes the note's title and files the note alongside others on the same subject, so reuse an existing topic name whenever it's the same subject.
 - Capture concrete actions and resolve relative dates ("Friday", "next week", "tomorrow") against today's date. If no date is implied, leave it null.
 - Suggest one small next step that moves them out of thinking and into doing.
@@ -73,15 +76,16 @@ export async function analyse(session: Session): Promise<Analysis> {
       ? `Topic: ${topic.title}\nKey notes they wanted to think about:\n${topic.prompts.map((p) => `- ${p}`).join("\n") || "(none)"}`
       : `No topic chosen; this is a free-form brain dump.${known.length ? `\nExisting topics:\n${known.join("\n")}` : ""}`,
     earlier.length ? `Earlier sessions${topic ? " on this topic" : ""} (newest first):\n${earlier.join("\n")}` : "",
-    `<transcript>\n${session.transcript}\n</transcript>`,
+    session.transcript.trim() ? `<transcript>\n${session.transcript}\n</transcript>` : "(Nothing said or typed. Work from the attached images.)",
   ];
+  const images = (await Promise.all((session.images ?? []).map(imageBase64))).filter((b): b is string => !!b);
 
   const model = data.settings.model || "claude-opus-5-5";
   const content = parts.filter(Boolean).join("\n\n");
   const api = client();
   // No automatic retry on another model if Claude declines: each request is
   // then a single billed attempt, so its cost can be capped up front.
-  const reserved = reserve(model, SYSTEM.length + content.length, MAX_OUTPUT_TOKENS);
+  const reserved = reserve(model, SYSTEM.length + content.length, MAX_OUTPUT_TOKENS, images.length);
   let response;
   try {
     response = await api.messages.parse(
@@ -90,7 +94,15 @@ export async function analyse(session: Session): Promise<Analysis> {
         max_tokens: MAX_OUTPUT_TOKENS,
         output_config: { effort: "medium", format: zodOutputFormat(AnalysisSchema) },
         system: SYSTEM,
-        messages: [{ role: "user", content }],
+        messages: [
+          {
+            role: "user",
+            content: [
+              ...images.map((data) => ({ type: "image" as const, source: { type: "base64" as const, media_type: "image/jpeg" as const, data } })),
+              { type: "text" as const, text: content },
+            ],
+          },
+        ],
       },
       { maxRetries: 0 }, // a silent retry would be a second charge
     );
@@ -113,4 +125,25 @@ export function describeError(err: unknown): string {
   if (err instanceof Anthropic.APIConnectionError) return "Couldn't reach Claude. Check your connection.";
   if (err instanceof Anthropic.APIError) return `Claude API error: ${err.message}`;
   return err instanceof Error ? err.message : String(err);
+}
+
+// Sorting runs in the background, like Essential Space's "analyzing" state:
+// the note is saved straight away and fills in when Claude replies.
+const pending = new Set<string>();
+
+export const isAnalysing = (id: string) => pending.has(id);
+
+export function startAnalysis(session: Session) {
+  if (pending.has(session.id)) return;
+  pending.add(session.id);
+  save();
+  analyse(session)
+    .then((a) => {
+      if (data.sessions.includes(session)) applyAnalysis(session, a); // skip if deleted meanwhile
+    })
+    .catch((err) => toast(describeError(err)))
+    .finally(() => {
+      pending.delete(session.id);
+      save();
+    });
 }

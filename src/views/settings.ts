@@ -23,7 +23,7 @@ export function settingsView(): HTMLElement {
       const f = file.files?.[0];
       if (!f || !confirm("Replace everything here with this backup?")) return;
       try {
-        importJson(await f.text());
+        await importJson(await f.text());
         toast("Backup restored");
       } catch {
         toast("That file isn't a ThinkingOut backup");
@@ -102,9 +102,9 @@ export function settingsView(): HTMLElement {
         h(
           "button",
           {
-            onclick: () => {
+            onclick: async () => {
               const a = h("a", {
-                href: URL.createObjectURL(new Blob([exportJson()], { type: "application/json" })),
+                href: URL.createObjectURL(new Blob([await exportJson()], { type: "application/json" })),
                 download: `thinkingout-${new Date().toISOString().slice(0, 10)}.json`,
               });
               a.click();
