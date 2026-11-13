@@ -28,6 +28,15 @@ npm run build    # production build in dist/
 
 Then open **Settings** in the app and paste in a Claude API key from https://console.anthropic.com. The key stays in your browser's local storage and is only ever sent to Anthropic.
 
+### Keeping Claude costs capped
+
+Claude's API is billed separately from a Claude Pro/Max membership. Two layers stop it costing more than you choose:
+
+1. **On your Anthropic account:** buy a small amount of prepaid credit (e.g. $5) and leave **auto-reload off**. Once it's used up, requests simply fail until you top up, so you can't be charged more than you loaded.
+2. **In the app:** Settings has a **monthly spending limit** (default $2). Before each request the app works out the most it could possibly cost and won't send it if that could take the month over the limit. It counts the real cost from each reply, never retries on its own, and keeps the full estimate counted if a request fails in a way where it can't tell whether you were charged. The limit resets on the 1st.
+
+Rough cost per sort: Opus 5.5 about 2–6¢, Sonnet 5.5 about 1–3¢, Haiku 5.5 under 0.1¢.
+
 ### Google Calendar (optional)
 
 Settings → Google Calendar connects your main Google calendar. Dated to-dos are added as events: all-day if they have no time, one hour long if they do. Undated to-dos stay on the to-do list only. While the app is open it checks Google every minute, so new or changed events show up on their own. Your Google events show in the Calendar tab with a blue **G**. Sync works both ways, so moving or deleting one of your to-dos in Google changes it here too. Ticked-off items get a ✓ in Google.

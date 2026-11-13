@@ -1,11 +1,12 @@
 import { h, toast } from "../dom";
 import { disconnect, googleStatus, sync } from "../google";
+import { budget } from "../budget";
 import { data, exportJson, importJson, save } from "../store";
 
 const MODELS = [
-  ["claude-opus-5-5", "Claude Opus 5.5 (best)"],
-  ["claude-sonnet-5-5", "Claude Sonnet 5.5 (cheaper)"],
-  ["claude-haiku-5-5", "Claude Haiku 5.5 (cheapest)"],
+  ["claude-opus-5-5", "Opus 5.5: best, about 2–6¢ a sort"],
+  ["claude-sonnet-5-5", "Sonnet 5.5: about 1–3¢ a sort"],
+  ["claude-haiku-5-5", "Haiku 5.5: under 0.1¢ a sort"],
 ];
 
 export function settingsView(): HTMLElement {
@@ -29,6 +30,8 @@ export function settingsView(): HTMLElement {
       }
     },
   });
+  const b = budget();
+  const limit = h("input", { type: "number", min: "0", step: "0.5", inputmode: "decimal", value: String(b.limit) });
   const talkUrl = `${location.origin}${location.pathname}#/talk?start=1`;
 
   return h(
@@ -41,10 +44,23 @@ export function settingsView(): HTMLElement {
       h("h3", null, "Claude"),
       h("label", null, "API key", key),
       h("label", null, "Model", model),
+      h("label", null, "Monthly spending limit (US$)", limit),
+      h(
+        "div",
+        { class: "meter", role: "progressbar", "aria-valuemin": 0, "aria-valuemax": b.limit, "aria-valuenow": b.spent },
+        h("div", { style: `width:${Math.min(100, b.limit ? (b.spent / b.limit) * 100 : 100)}%` }),
+      ),
       h(
         "p",
         { class: "muted small" },
-        "Get a key at console.anthropic.com. It is stored only in this browser and sent only to Anthropic. Transcripts are sent to Claude only when you tap “Make sense of it”.",
+        `Used this month: $${b.spent.toFixed(2)} of $${b.limit.toFixed(2)}. The app won't send anything to Claude that could go over the limit, and it resets on the 1st.`,
+      ),
+      h(
+        "p",
+        { class: "muted small" },
+        "Get a key at console.anthropic.com. It is stored only in this browser and sent only to Anthropic. Transcripts are sent to Claude only when you tap “Make sense of it”. ",
+        h("strong", null, "To make overspending impossible on your account too:"),
+        " buy a small amount of prepaid credit (e.g. $5) and leave auto-reload off. Then the most Claude can ever cost is what you've loaded.",
       ),
       h(
         "button",
@@ -53,6 +69,8 @@ export function settingsView(): HTMLElement {
           onclick: () => {
             data.settings.apiKey = key.value.trim();
             data.settings.model = model.value;
+            const n = Number(limit.value);
+            budget().limit = Number.isFinite(n) && n >= 0 ? n : b.limit;
             save();
             toast("Saved");
           },

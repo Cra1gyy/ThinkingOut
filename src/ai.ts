@@ -1,8 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { data, topicById, type Analysis, type Session } from "./store";
 import { todayIso } from "./dates";
+import { costOf, reserve, settle } from "./budget";
+
+const MAX_OUTPUT_TOKENS = 16000;
 
 const AnalysisSchema = z.object({
   title: z
@@ -73,15 +76,31 @@ export async function analyse(session: Session): Promise<Analysis> {
     `<transcript>\n${session.transcript}\n</transcript>`,
   ];
 
-  const response = await client().beta.messages.parse({
-    model: data.settings.model || "claude-opus-5-5",
-    max_tokens: 16000,
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    output_config: { effort: "medium", format: betaZodOutputFormat(AnalysisSchema) },
-    system: SYSTEM,
-    messages: [{ role: "user", content: parts.filter(Boolean).join("\n\n") }],
-  });
+  const model = data.settings.model || "claude-opus-5-5";
+  const content = parts.filter(Boolean).join("\n\n");
+  const api = client();
+  // No automatic retry on another model if Claude declines: each request is
+  // then a single billed attempt, so its cost can be capped up front.
+  const reserved = reserve(model, SYSTEM.length + content.length, MAX_OUTPUT_TOKENS);
+  let response;
+  try {
+    response = await api.messages.parse(
+      {
+        model,
+        max_tokens: MAX_OUTPUT_TOKENS,
+        output_config: { effort: "medium", format: zodOutputFormat(AnalysisSchema) },
+        system: SYSTEM,
+        messages: [{ role: "user", content }],
+      },
+      { maxRetries: 0 }, // a silent retry would be a second charge
+    );
+  } catch (err) {
+    // An error response from the API means nothing was billed. Anything else
+    // (lost connection, timeout) might have been, so the reservation stands.
+    if (err instanceof Anthropic.APIError && err.status !== undefined) settle(reserved, 0);
+    throw err;
+  }
+  settle(reserved, costOf(model, response.usage));
 
   if (response.stop_reason === "refusal") throw new Error("Claude declined to process this transcript.");
   if (!response.parsed_output) throw new Error("Couldn't read Claude's response. Try again.");

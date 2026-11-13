@@ -70,6 +70,7 @@ export interface GoogleSync {
 export interface Settings {
   apiKey: string;
   model: string;
+  budget?: { limit: number; month: string; spent: number }; // US$, see budget.ts
 }
 
 interface Data {
