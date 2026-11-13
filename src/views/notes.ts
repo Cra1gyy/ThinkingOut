@@ -44,9 +44,11 @@ function topicGroup(topic: Topic | null, notes: Session[]) {
     h(
       "div",
       { class: "row between" },
-      topic ? h("a", { class: "topic-title", href: `#/topic/${topic.id}` }, topic.title) : h("strong", { class: "topic-title" }, "Not sorted yet"),
+      topic ? h("a", { class: "topic-title", href: `#/topic/${topic.id}` }, topic.title) : h("strong", { class: "topic-title" }, "No topic yet"),
       h("span", { class: "muted small" }, `${notes.length} note${notes.length === 1 ? "" : "s"}${openTodos ? ` · ${openTodos} to-do` : ""}`),
     ),
+    // Notes from before topics were automatic, or never sorted.
+    topic ? null : h("p", { class: "muted small" }, "Open one and tap Re-sort (or Make sense of it) to file it under a topic and add its to-dos."),
     notes.length ? notes.map(noteRow) : h("p", { class: "muted small" }, "No notes yet. Talk it through from the topic page."),
   );
 }
