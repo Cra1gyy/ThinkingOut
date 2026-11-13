@@ -1,10 +1,12 @@
 import "./style.css";
+import { applyMarkerColors } from "./colors";
 import { h } from "./dom";
 import { startLiveSync, sync, syncSoon } from "./google";
 import { onChange } from "./store";
 import { calendarView } from "./views/calendar";
 import { settingsView } from "./views/settings";
 import { talkView } from "./views/talk";
+import { collectionView } from "./views/collections";
 import { noteView, notesView } from "./views/notes";
 import { todoView } from "./views/todo";
 import { topicView } from "./views/topics";
@@ -16,7 +18,7 @@ const TABS = [
   ["settings", "⚙︎", "Settings"],
 ] as const;
 
-const SECTION_OF: Record<string, string> = { note: "notes", todo: "notes", topic: "notes" };
+const SECTION_OF: Record<string, string> = { note: "notes", todo: "notes", topic: "notes", collection: "notes" };
 // Old links (shortcuts, bookmarks) from before Thoughts and Topics became Notes.
 const ALIASES: Record<string, string> = { thoughts: "notes", topics: "notes", thought: "note" };
 
@@ -32,10 +34,12 @@ function route() {
 }
 
 function render() {
+  applyMarkerColors();
   const { name, id, params } = route();
   const view =
     name === "note" ? noteView(id)
     : name === "topic" ? topicView(id)
+    : name === "collection" ? collectionView(id, params)
     : name === "notes" ? notesView()
     : name === "todo" ? todoView()
     : name === "calendar" ? calendarView(params)

@@ -4,6 +4,7 @@ import { go, h, toast } from "../dom";
 import { localDayOf, prettyDate, prettyDateTime } from "../dates";
 import { data, noteTitle, save, sessionById, topicById, uid, type Session, type Topic } from "../store";
 import { analysisCard } from "./analysis";
+import { collectionChips, collectionsGrid } from "./collections";
 
 // The Notes tab holds two lists: notes (by topic) and the to-do list.
 export function notesTabs(on: "notes" | "todo") {
@@ -27,13 +28,15 @@ const lines = (text: string) =>
     .map((l) => l.trim())
     .filter(Boolean);
 
-function noteRow(s: Session) {
+// `withTitle` for lists that mix topics (collections); topic groups don't need it.
+export function noteRow(s: Session, withTitle = false) {
   return h(
     "a",
     { class: "note-row", href: `#/note/${s.id}` },
     h(
       "span",
       { class: "note-row-text" },
+      withTitle ? h("strong", null, isAnalysing(s.id) && !s.analysis ? "New note" : noteTitle(s)) : null,
       h("span", { class: "muted small" }, prettyDateTime(s.createdAt), isAnalysing(s.id) ? " · Analyzing…" : ""),
       h("span", { class: "clamp" }, s.analysis?.summary ?? (s.transcript || "Image")),
     ),
@@ -55,7 +58,7 @@ function topicGroup(topic: Topic | null, notes: Session[]) {
     ),
     // Notes from before topics were automatic, or never sorted.
     topic ? null : h("p", { class: "muted small" }, "Open one and tap Re-sort (or Make sense of it) to file it under a topic and add its to-dos."),
-    notes.length ? notes.map(noteRow) : h("p", { class: "muted small" }, "No notes yet. Talk it through from the topic page."),
+    notes.length ? notes.map((n) => noteRow(n)) : h("p", { class: "muted small" }, "No notes yet. Talk it through from the topic page."),
   );
 }
 
@@ -109,6 +112,8 @@ export function notesView(): HTMLElement {
           h("ul", null, recentLoops.map(({ l, s }) => h("li", null, l, " ", h("a", { href: `#/note/${s.id}`, class: "muted small" }, prettyDate(localDayOf(s.createdAt)))))),
         )
       : null,
+    collectionsGrid(),
+    h("h3", { class: "section-title" }, "All notes by topic"),
     search,
     list,
     h(
@@ -187,6 +192,7 @@ export function noteView(id: string): HTMLElement {
           s.images.map((id) => h("button", { class: "gallery-item", "aria-label": "Open image", onclick: () => viewImage(id) }, thumb(id, "gallery-img"))),
         )
       : null,
+    collectionChips(s),
     busy
       ? h("div", { class: "block analysing" }, h("span", { class: "spinner" }), "Analyzing… you can leave this page; the note fills in when it's done.")
       : editing.has(s.id)

@@ -1,3 +1,4 @@
+import { swatches, todoColor } from "../colors";
 import { h, toast } from "../dom";
 import { addDays, prettyDate, todayIso } from "../dates";
 import { googleStatus, sync } from "../google";
@@ -18,9 +19,22 @@ export function todoRow(item: CalendarItem, showDate = false) {
     "aria-label": "Date",
     onchange: () => updateItem(item, { date: date.value || null }),
   });
+  // Tapping the colour dot opens a row of colours under the to-do.
+  const palette = h("div", { class: "item-palette", hidden: true }, swatches(item.color, (c) => updateItem(item, { color: c })));
+  const dot = h("button", {
+    class: "color-dot",
+    style: `--c:${todoColor(item.color)}`,
+    "aria-label": "Colour",
+    "aria-expanded": "false",
+    onclick: () => {
+      palette.hidden = !palette.hidden;
+      dot.setAttribute("aria-expanded", String(!palette.hidden));
+    },
+  });
   return h(
     "li",
-    { class: `item${item.done ? " done" : ""}` },
+    { class: `item${item.done ? " done" : ""}`, style: `--c:${todoColor(item.color)}` },
+    dot,
     h("input", { type: "checkbox", checked: item.done, "aria-label": "Done", onchange: () => updateItem(item, { done: !item.done }) }),
     h(
       "div",
@@ -35,6 +49,7 @@ export function todoRow(item: CalendarItem, showDate = false) {
       ),
     ),
     h("button", { class: "ghost small", "aria-label": "Delete", onclick: () => removeItem(item) }, "✕"),
+    palette,
   );
 }
 
@@ -89,6 +104,7 @@ export function todoView(): HTMLElement {
   const done = data.items.filter((i) => i.done).sort((a, b) => byWhen(b, a)).slice(0, 30);
 
   const title = h("input", { placeholder: "Add a to-do…", required: true });
+  let color: string | null = null;
   const date = h("input", { type: "date", "aria-label": "Date (optional)" });
   const time = h("input", { type: "time", "aria-label": "Time (optional)" });
 
@@ -109,12 +125,13 @@ export function todoView(): HTMLElement {
         class: "block form",
         onsubmit: (e: Event) => {
           e.preventDefault();
-          addItem({ title: title.value.trim(), date: date.value || null, time: date.value ? time.value || null : null, notes: "", sessionId: null });
+          addItem({ title: title.value.trim(), date: date.value || null, time: date.value ? time.value || null : null, notes: "", sessionId: null, color });
           toast(date.value ? `Added for ${prettyDate(date.value)}` : "Added");
         },
       },
       title,
       h("div", { class: "row nowrap" }, date, time, h("button", { type: "submit", class: "primary" }, "Add")),
+      swatches(null, (c) => (color = c)),
       h("p", { class: "muted small hint-inline" }, "Leave the date empty for anytime. Dated to-dos go on your calendar."),
     ),
     !open.length && !done.length ? h("p", { class: "empty" }, "Nothing to do yet. To-dos from your notes land here automatically.") : null,

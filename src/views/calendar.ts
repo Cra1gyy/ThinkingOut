@@ -1,3 +1,4 @@
+import { colorHex, todoColor } from "../colors";
 import { go, h } from "../dom";
 import { eventsOn, googleStatus } from "../google";
 import { syncBar, todoRow } from "./todo";
@@ -10,7 +11,7 @@ function googleRow(ev: GoogleEvent) {
   return h(
     "li",
     { class: "item google" },
-    h("span", { class: "g-mark", title: "From Google Calendar" }, "G"),
+    h("span", { class: "g-mark", title: "From Google Calendar", style: colorHex(ev.color) ? `background:${colorHex(ev.color)}` : null }, "G"),
     h("a", { class: "item-body", href: ev.link, target: "_blank", rel: "noopener" }, h("span", null, ev.time ? h("strong", null, `${ev.time} `) : null, ev.title)),
   );
 }
@@ -89,13 +90,15 @@ export function calendarView(params: URLSearchParams): HTMLElement {
     const d = parseIso(day);
     const items = data.items.filter((i) => i.date === day);
     const open = items.filter((i) => !i.done).length;
+    // One dot per to-do colour on the day (up to three).
+    const colours = [...new Set(items.filter((i) => !i.done).map((i) => todoColor(i.color)))].slice(0, 3);
     const hasGoogle = eventsOn(day).length > 0;
     const cls = ["cell", d.getMonth() !== sel.getMonth() && "other", day === todayIso() && "today", day === selected && "sel"].filter(Boolean).join(" ");
     return h(
       "button",
       { class: cls, onclick: () => go(link(day)) },
       h("span", null, d.getDate()),
-      h("span", { class: "dots" }, open ? h("i", { class: "dot task" }) : null, items.length && !open ? h("i", { class: "dot done" }) : null, hasGoogle ? h("i", { class: "dot google" }) : null, thoughtDays.has(day) ? h("i", { class: "dot thought" }) : null),
+      h("span", { class: "dots" }, colours.map((c) => h("i", { class: "dot", style: `background:${c}` })), items.length && !open ? h("i", { class: "dot done" }) : null, hasGoogle ? h("i", { class: "dot google" }) : null, thoughtDays.has(day) ? h("i", { class: "dot thought" }) : null),
     );
   });
 
@@ -113,7 +116,7 @@ export function calendarView(params: URLSearchParams): HTMLElement {
     ),
     h("div", { class: "grid weekdays" }, ["M", "T", "W", "T", "F", "S", "S"].map((d) => h("span", null, d))),
     h("div", { class: "grid" }, cells),
-    h("p", { class: "legend muted small" }, h("i", { class: "dot task" }), " to do  ", h("i", { class: "dot done" }), " all done  ", h("i", { class: "dot thought" }), " note", googleStatus().connected ? [" ", h("i", { class: "dot google" }), " Google"] : null),
+    h("p", { class: "legend muted small" }, h("i", { class: "dot task" }), " to do (in its colour)  ", h("i", { class: "dot done" }), " all done  ", h("i", { class: "dot thought" }), " note", googleStatus().connected ? [" ", h("i", { class: "dot google" }), " Google"] : null),
     dayAgenda(selected),
   );
 }

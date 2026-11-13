@@ -16,8 +16,9 @@ It's built for people who think by speaking rather than with an inner voice, and
   - **One next step**: something small to do now instead of thinking more
   - to-dos, which go **straight onto your to-do list**. Dates you mention ("Friday", "next week") are worked out, and dated to-dos go on your calendar.
 - **Notes**: every note, grouped under its topic, with image thumbnails. You can edit anything Claude wrote and share a note as Markdown, plus your loops from the last two weeks. You can re-file a note under a different topic, or start a topic with key notes to prompt you.
-- **To-do**: everything you need to do, sorted into overdue, today, upcoming and anytime. Give a to-do a date and it goes on your calendar (and Google Calendar); clear the date and it comes off again.
-- **Calendar**: a month view and a "next 7 days" agenda showing your to-dos, your Google events and the days you made notes.
+- **Collections**: folders you name yourself (film ideas, racing, general ideas…) at the top of the Notes tab. Add notes from a note's page, tick several at once from the collection, or pick a collection on the Talk screen to capture straight into it. A note can be in more than one collection.
+- **To-do**: everything you need to do, sorted into overdue, today, upcoming and anytime. Give a to-do a date and it goes on your calendar (and Google Calendar); clear the date and it comes off again. Tap a to-do's dot to give it a colour; the colour shows on the calendar and on the event in Google Calendar (they're Google's own event colours).
+- **Calendar**: a month view and a "next 7 days" agenda showing your to-dos (in their colours), your Google events (in their Google colours) and the days you made notes. Settings → Calendar colours changes the default to-do, "all done" and notes colours.
 
 ## Setup
 

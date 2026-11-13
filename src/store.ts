@@ -29,6 +29,14 @@ export interface Session {
   analysis: Analysis | null;
   addedActions: number[]; // indexes of actions already put on the calendar
   images?: string[]; // ids in images.ts (IndexedDB)
+  collections?: string[]; // ids of the collections this note is in
+}
+
+// A folder you name yourself and put notes into (a note can be in several).
+export interface Collection {
+  id: string;
+  name: string;
+  createdAt: string;
 }
 
 export interface Topic {
@@ -48,6 +56,7 @@ export interface CalendarItem {
   notes: string;
   done: boolean;
   sessionId: string | null;
+  color?: string | null; // Google Calendar colorId, see colors.ts
   googleId?: string | null; // event id once pushed to Google Calendar
   dirty?: boolean; // changed locally since the last push
 }
@@ -60,6 +69,7 @@ export interface GoogleEvent {
   end: string; // YYYY-MM-DD, inclusive
   time: string | null; // HH:MM, null for all-day
   link: string;
+  color?: string | null;
 }
 
 export interface GoogleSync {
@@ -74,12 +84,14 @@ export interface Settings {
   apiKey: string;
   model: string;
   budget?: { limit: number; month: string; spent: number }; // US$, see budget.ts
+  markers?: { todo?: string | null; done?: string | null; note?: string | null }; // calendar dot colours
 }
 
 interface Data {
   sessions: Session[];
   topics: Topic[];
   items: CalendarItem[];
+  collections: Collection[];
   settings: Settings;
   google: GoogleSync;
 }
@@ -90,6 +102,7 @@ const empty = (): Data => ({
   sessions: [],
   topics: [],
   items: [],
+  collections: [],
   settings: { apiKey: "", model: "claude-opus-5-5" },
   google: { clientId: "", connected: false, lastSync: null, events: [], pendingDeletes: [] },
 });
@@ -136,6 +149,7 @@ export async function importJson(text: string) {
   if (incoming.images) await importImages(incoming.images);
   data.sessions = incoming.sessions ?? [];
   data.topics = incoming.topics ?? [];
+  data.collections = incoming.collections ?? [];
   // Restored items are re-pushed as new events if Google is connected on this device.
   data.items = (incoming.items ?? []).map((i) => ({ ...i, googleId: null, dirty: true }));
   save();
@@ -198,6 +212,32 @@ export function applyAnalysis(session: Session, analysis: Analysis) {
 
 // A note's title is the topic it's filed under.
 export const noteTitle = (s: Session) => topicById(s.topicId)?.title ?? s.analysis?.title ?? "Not sorted yet";
+
+// ---- collections ----------------------------------------------------------
+
+export const collectionById = (id: string) => data.collections.find((c) => c.id === id) ?? null;
+export const notesIn = (c: Collection) => data.sessions.filter((s) => s.collections?.includes(c.id));
+
+export function addCollection(name: string): Collection {
+  const c: Collection = { id: uid(), name: name.trim(), createdAt: new Date().toISOString() };
+  data.collections.unshift(c);
+  save();
+  return c;
+}
+
+export function setInCollection(s: Session, collectionId: string, inIt: boolean) {
+  const now = new Set(s.collections ?? []);
+  if (inIt) now.add(collectionId);
+  else now.delete(collectionId);
+  s.collections = [...now];
+  save();
+}
+
+export function removeCollection(c: Collection) {
+  data.collections = data.collections.filter((x) => x.id !== c.id);
+  data.sessions.forEach((s) => (s.collections = s.collections?.filter((id) => id !== c.id)));
+  save();
+}
 
 export const topicById = (id: string | null) => data.topics.find((t) => t.id === id) ?? null;
 export const sessionById = (id: string | null) => data.sessions.find((s) => s.id === id) ?? null;

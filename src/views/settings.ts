@@ -1,3 +1,4 @@
+import { markers, swatches } from "../colors";
 import { h, toast } from "../dom";
 import { disconnect, googleStatus, sync } from "../google";
 import { budget } from "../budget";
@@ -79,6 +80,7 @@ export function settingsView(): HTMLElement {
       ),
     ),
     googleSection(),
+    colourSection(),
     h(
       "section",
       { class: "block" },
@@ -186,5 +188,23 @@ function googleSection() {
     ),
     h("label", null, "Google OAuth Client ID", clientId),
     connect,
+  );
+}
+
+// Colours for the calendar's markers. Individual to-dos can also have their own.
+function colourSection() {
+  const m = markers();
+  const set = (key: "todo" | "done" | "note") => (id: string | null) => {
+    data.settings.markers = { ...data.settings.markers, [key]: id };
+    save();
+  };
+  return h(
+    "section",
+    { class: "block form" },
+    h("h3", null, "Calendar colours"),
+    h("p", { class: "muted small" }, "Give any to-do its own colour by tapping its dot. These set the defaults."),
+    h("label", null, "To-dos without a colour", swatches(m.todo, set("todo"), "App purple")),
+    h("label", null, "Days where everything's done", swatches(m.done, set("done"))),
+    h("label", null, "Days you made notes", swatches(m.note, set("note"))),
   );
 }

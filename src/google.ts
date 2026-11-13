@@ -118,6 +118,8 @@ function toEvent(item: CalendarItem & { date: string }) {
     start,
     end,
     extendedProperties: { private: { thinkingoutId: item.id } },
+    // null clears a colour in Google when it's removed here (PATCH semantics).
+    colorId: item.color ?? null,
   };
 }
 
@@ -154,8 +156,17 @@ async function push() {
     if (item.googleId && !item.dirty) continue;
     if (item.googleId) {
       try {
-        // PATCH keeps anything added in Google (reminders, colour) intact.
-        await call("PATCH", `${API}/${encodeURIComponent(item.googleId)}`, toEvent({ ...item, date: item.date }));
+        // PATCH keeps anything added in Google (reminders) intact.
+        const url = `${API}/${encodeURIComponent(item.googleId)}`;
+        const body = toEvent({ ...item, date: item.date });
+        try {
+          await call("PATCH", url, body);
+        } catch (err) {
+          // If Google ever rejects the colour, still sync everything else.
+          if (!(err instanceof GoogleError && err.status === 400)) throw err;
+          const { colorId: _c, ...rest } = body;
+          await call("PATCH", url, rest);
+        }
         item.dirty = false;
         continue;
       } catch (err) {
@@ -163,7 +174,8 @@ async function push() {
         // Event vanished on Google's side: fall through and create it again.
       }
     }
-    const created = await call("POST", API, toEvent({ ...item, date: item.date }));
+    const { colorId, ...fields } = toEvent({ ...item, date: item.date });
+    const created = await call("POST", API, colorId ? { ...fields, colorId } : fields);
     item.googleId = created.id;
     item.dirty = false;
   }
@@ -203,8 +215,9 @@ async function pull() {
       item.title = summary.replace(DONE, "");
       item.date = start;
       item.time = time;
+      item.color = ev.colorId ?? null;
     } else if (ev.status !== "cancelled") {
-      external.push({ id: ev.id, title: ev.summary ?? "(no title)", ...readTimes(ev), link: ev.htmlLink ?? "" });
+      external.push({ id: ev.id, title: ev.summary ?? "(no title)", ...readTimes(ev), link: ev.htmlLink ?? "", color: ev.colorId ?? null });
     }
   }
   data.google.events = external;

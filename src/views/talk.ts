@@ -2,11 +2,13 @@ import { describeError, startAnalysis } from "../ai";
 import { go, h, toast } from "../dom";
 import { addImage, removeImages, takeSharedInbox, thumb } from "../images";
 import { listen, speechSupported, type Listener } from "../speech";
-import { data, save, topicById, uid, type Session } from "../store";
+import { collectionById, data, save, topicById, uid, type Session } from "../store";
+import { newCollection } from "./collections";
 
 // Kept at module level so a capture survives navigating away and back.
 const state = {
   topicId: null as string | null,
+  collectionId: null as string | null,
   committed: "", // text before the current recording run (typed or earlier runs)
   live: "",
   interim: "",
@@ -21,6 +23,8 @@ const HOLD_MS = 450;
 
 export function talkView(params: URLSearchParams): HTMLElement {
   if (params.has("topic")) state.topicId = params.get("topic") || null;
+  if (params.has("collection")) state.collectionId = params.get("collection") || null;
+  if (state.collectionId && !collectionById(state.collectionId)) state.collectionId = null;
   const autoStart = params.get("start") === "1";
 
   const textarea = h("textarea", {
@@ -41,6 +45,26 @@ export function talkView(params: URLSearchParams): HTMLElement {
   const sortBtn = h("button", { class: "primary", onclick: () => finish(true) }, "Save & sort");
   const saveBtn = h("button", { onclick: () => finish(false) }, "Just save");
   const strip = h("div", { class: "strip" });
+  const NEW = "__new__";
+  const collectionSelect = h(
+    "select",
+    {
+      "aria-label": "Save into a collection",
+      onchange: () => {
+        if (collectionSelect.value === NEW) {
+          const c = newCollection();
+          state.collectionId = c?.id ?? state.collectionId;
+          collectionSelect.replaceChildren(...collectionOptions());
+        } else state.collectionId = collectionSelect.value || null;
+      },
+    },
+  );
+  const collectionOptions = () => [
+    h("option", { value: "" }, "No collection"),
+    ...data.collections.map((c) => h("option", { value: c.id, selected: c.id === state.collectionId }, c.name)),
+    h("option", { value: NEW }, "New collection…"),
+  ];
+  collectionSelect.append(...collectionOptions());
 
   const topic = topicById(state.topicId);
   const topicSelect = h(
@@ -212,6 +236,7 @@ export function talkView(params: URLSearchParams): HTMLElement {
       analysis: null,
       addedActions: [],
       images: state.images,
+      collections: state.collectionId ? [state.collectionId] : [],
     };
     data.sessions.unshift(session);
     state.committed = "";
@@ -238,6 +263,7 @@ export function talkView(params: URLSearchParams): HTMLElement {
     textarea,
     interim,
     strip,
+    h("label", { class: "inline save-into" }, "Save into ", collectionSelect),
     picker,
     camera,
     h(
