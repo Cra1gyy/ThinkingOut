@@ -35,10 +35,12 @@ export interface Topic {
   createdAt: string;
 }
 
+// A to-do. With a date it also shows on the calendar (and Google Calendar);
+// without one it lives only on the to-do list.
 export interface CalendarItem {
   id: string;
   title: string;
-  date: string; // YYYY-MM-DD
+  date: string | null; // YYYY-MM-DD
   time: string | null;
   notes: string;
   done: boolean;
@@ -107,8 +109,13 @@ export function onChange(fn: () => void) {
   listeners.add(fn);
 }
 
-export function save() {
+// Write to storage without redrawing the screen.
+export function persist() {
   localStorage.setItem(KEY, JSON.stringify(data));
+}
+
+export function save() {
+  persist();
   listeners.forEach((fn) => fn());
 }
 
@@ -135,6 +142,12 @@ export function addItem(item: Omit<CalendarItem, "id" | "done">) {
 
 export function updateItem(item: CalendarItem, changes: Partial<CalendarItem>) {
   Object.assign(item, changes, { dirty: true });
+  // Taking the date off moves it back to the list only, so it leaves Google Calendar.
+  if (!item.date && item.googleId) {
+    data.google.pendingDeletes.push(item.googleId);
+    item.googleId = null;
+  }
+  if (!item.date) item.time = null;
   save();
 }
 
@@ -143,6 +156,42 @@ export function removeItem(item: CalendarItem) {
   if (item.googleId) data.google.pendingDeletes.push(item.googleId);
   save();
 }
+
+// Find a topic by name (ignoring case), or start a new one.
+export function topicNamed(name: string): Topic {
+  const clean = name.trim();
+  const found = data.topics.find((t) => t.title.toLowerCase() === clean.toLowerCase());
+  if (found) return found;
+  const topic: Topic = { id: uid(), title: clean, prompts: [], createdAt: new Date().toISOString() };
+  data.topics.unshift(topic);
+  return topic;
+}
+
+// Store a fresh analysis on a note: file it under its overarching topic and put
+// its to-dos on the to-do list (dated ones then sync to Google Calendar).
+export function applyAnalysis(session: Session, analysis: Analysis) {
+  session.analysis = analysis;
+  if (!session.topicId && analysis.title.trim()) session.topicId = topicNamed(analysis.title).id;
+  const existing = new Set(data.items.filter((i) => i.sessionId === session.id).map((i) => i.title.toLowerCase()));
+  analysis.actions.forEach((a) => {
+    if (existing.has(a.text.toLowerCase())) return; // already there from an earlier sort
+    data.items.push({
+      id: uid(),
+      title: a.text,
+      date: a.date,
+      time: a.date ? a.time : null,
+      notes: noteTitle(session),
+      done: false,
+      sessionId: session.id,
+      dirty: true,
+    });
+  });
+  session.addedActions = analysis.actions.map((_, i) => i);
+  save();
+}
+
+// A note's title is the topic it's filed under.
+export const noteTitle = (s: Session) => topicById(s.topicId)?.title ?? s.analysis?.title ?? "Not sorted yet";
 
 export const topicById = (id: string | null) => data.topics.find((t) => t.id === id) ?? null;
 export const sessionById = (id: string | null) => data.sessions.find((s) => s.id === id) ?? null;

@@ -1,7 +1,7 @@
 import { analyse, describeError } from "../ai";
 import { go, h, toast } from "../dom";
 import { listen, speechSupported, type Listener } from "../speech";
-import { data, save, topicById, uid, type Session } from "../store";
+import { applyAnalysis, data, save, topicById, uid, type Session } from "../store";
 
 // Kept at module level so a recording survives navigating away and back.
 const state = {
@@ -126,20 +126,19 @@ export function talkView(params: URLSearchParams): HTMLElement {
     state.committed = "";
     state.live = "";
     if (!withAi) {
-      go(`#/thought/${session.id}`);
+      go(`#/note/${session.id}`);
       return;
     }
     state.busy = true;
     refresh();
     try {
-      session.analysis = await analyse(session);
-      save();
+      applyAnalysis(session, await analyse(session));
     } catch (err) {
       toast(describeError(err));
     } finally {
       state.busy = false;
     }
-    go(`#/thought/${session.id}`);
+    go(`#/note/${session.id}`);
   }
 
   const view = h(

@@ -5,7 +5,11 @@ import { data, topicById, type Analysis, type Session } from "./store";
 import { todayIso } from "./dates";
 
 const AnalysisSchema = z.object({
-  title: z.string().describe("A short title (max ~8 words) for what this session was about"),
+  title: z
+    .string()
+    .describe(
+      "The overarching topic that runs through the whole session, as a short name (2-6 words). If it's the same subject as one of the existing topics listed, use that exact name",
+    ),
   summary: z.string().describe("2-4 sentences, written to the speaker as 'you', capturing where their thinking landed"),
   keyThoughts: z.array(z.string()).describe("The distinct thoughts, each as one clear bullet, de-duplicated and in a sensible order"),
   themes: z.array(z.string()).describe("1-4 word tags for the themes that came up"),
@@ -19,7 +23,7 @@ const AnalysisSchema = z.object({
         time: z.string().nullable().describe("HH:MM 24h if a time was mentioned, else null"),
       }),
     )
-    .describe("Things to do or schedule"),
+    .describe("Things to do or schedule. These go straight onto their to-do list, and dated ones onto their calendar"),
   loops: z
     .array(z.string())
     .describe("Thoughts the speaker kept circling back to without moving forward, in this session or compared with earlier sessions"),
@@ -32,6 +36,7 @@ Your job is to give their thinking back to them with clarity:
 - Pull out each distinct thought as a clean bullet in their own spirit, not generic advice.
 - Connect the pieces: notice where separate thoughts are really the same thing, or where one answers another.
 - Be honest about loops. If they repeat a worry without new information, or if earlier sessions show the same thought, name it plainly and kindly.
+- Name the one overarching topic the session keeps coming back to. It becomes the note's title and files the note alongside others on the same subject, so reuse an existing topic name whenever it's the same subject.
 - Capture concrete actions and resolve relative dates ("Friday", "next week", "tomorrow") against today's date. If no date is implied, leave it null.
 - Suggest one small next step that moves them out of thinking and into doing.
 Keep wording plain and short. Do not invent content that was not said.`;
@@ -49,12 +54,21 @@ export async function analyse(session: Session): Promise<Analysis> {
     .slice(0, topic ? 6 : 3)
     .map((s) => `- ${s.createdAt.slice(0, 10)}: ${s.analysis!.title}. ${s.analysis!.summary} Loops: ${s.analysis!.loops.join("; ") || "none"}`);
 
+  // For a free-form brain dump, show the topics they already have so the note
+  // can be filed under one of them instead of starting a near-duplicate.
+  const known = topic
+    ? []
+    : data.topics.slice(0, 30).map((t) => {
+        const latest = data.sessions.find((s) => s.topicId === t.id && s.analysis)?.analysis;
+        return `- ${t.title}${latest ? `: ${latest.summary}` : ""}`;
+      });
+
   const today = new Date();
   const parts = [
     `Today is ${today.toLocaleDateString("en-GB", { weekday: "long" })} ${todayIso()}.`,
     topic
       ? `Topic: ${topic.title}\nKey notes they wanted to think about:\n${topic.prompts.map((p) => `- ${p}`).join("\n") || "(none)"}`
-      : "No specific topic; this is a free-form brain dump.",
+      : `No topic chosen; this is a free-form brain dump.${known.length ? `\nExisting topics:\n${known.join("\n")}` : ""}`,
     earlier.length ? `Earlier sessions${topic ? " on this topic" : ""} (newest first):\n${earlier.join("\n")}` : "",
     `<transcript>\n${session.transcript}\n</transcript>`,
   ];

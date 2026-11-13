@@ -1,44 +1,27 @@
-import { bulletList, h, toast } from "../dom";
-import { prettyDate } from "../dates";
-import { addItem, type Session } from "../store";
+import { bulletList, h } from "../dom";
+import { addItem, data, noteTitle, type Session } from "../store";
+import { todoRow } from "./todo";
 
-export function addActionToCalendar(session: Session, index: number, date: string) {
-  const action = session.analysis!.actions[index];
-  session.addedActions = [...session.addedActions, index];
-  addItem({ title: action.text, date, time: action.time, notes: session.analysis!.title, sessionId: session.id });
-  toast(`Added to ${prettyDate(date)}`);
-}
-
+// Each action from a note is put on the to-do list when the note is sorted.
+// Show the live to-do (tick it, change its date) or, for older notes or one
+// you deleted, a button to add it back.
 function actionRow(session: Session, index: number) {
   const action = session.analysis!.actions[index];
-  const added = session.addedActions.includes(index);
-  const dateInput = h("input", { type: "date", value: action.date ?? "", "aria-label": "Date" });
+  const item = data.items.find((i) => i.sessionId === session.id && i.title.toLowerCase() === action.text.toLowerCase());
+  if (item) return todoRow(item, true);
   return h(
     "li",
-    { class: "action" },
-    h("span", { class: "action-text" }, action.text, action.time ? h("span", { class: "muted" }, ` · ${action.time}`) : null),
-    added
-      ? h("span", { class: "pill done" }, "On calendar")
-      : h(
-          "span",
-          { class: "action-add" },
-          dateInput,
-          h(
-            "button",
-            {
-              class: "small",
-              onclick: () => {
-                if (!dateInput.value) {
-                  dateInput.focus();
-                  toast("Pick a date first");
-                  return;
-                }
-                addActionToCalendar(session, index, dateInput.value);
-              },
-            },
-            "Add",
-          ),
-        ),
+    { class: "item" },
+    h("span", { class: "item-body" }, action.text),
+    h(
+      "button",
+      {
+        class: "small",
+        onclick: () =>
+          addItem({ title: action.text, date: action.date, time: action.date ? action.time : null, notes: noteTitle(session), sessionId: session.id }),
+      },
+      "Add to to-dos",
+    ),
   );
 }
 
@@ -61,8 +44,8 @@ export function analysisCard(session: Session) {
       ? h(
           "section",
           { class: "block" },
-          h("h3", null, "To do / schedule"),
-          h("ul", { class: "actions" }, a.actions.map((_, i) => actionRow(session, i))),
+          h("h3", null, "On your ", h("a", { href: "#/todo" }, "to-do list")),
+          h("ul", { class: "items" }, a.actions.map((_, i) => actionRow(session, i))),
         )
       : null,
   );

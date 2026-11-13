@@ -7,7 +7,7 @@
 //       come back), and every other event is shown read-only in the calendar.
 
 import { addDays, isoDate, todayIso } from "./dates";
-import { data, save, type CalendarItem, type GoogleEvent } from "./store";
+import { data, persist, save, type CalendarItem, type GoogleEvent } from "./store";
 
 const SCOPE = "https://www.googleapis.com/auth/calendar.events";
 const API = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
@@ -101,7 +101,7 @@ async function call(method: string, url: string, body?: unknown): Promise<any> {
 const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 const hhmm = (d: Date) => d.toTimeString().slice(0, 5);
 
-function toEvent(item: CalendarItem) {
+function toEvent(item: CalendarItem & { date: string }) {
   let start, end;
   if (item.time) {
     const s = new Date(`${item.date}T${item.time}:00`);
@@ -146,12 +146,16 @@ async function push() {
   // Don't flood Google with long-finished items the first time you connect.
   const cutoff = addDays(todayIso(), -PULL_BACK_DAYS);
   for (const item of data.items) {
+    if (!item.date) {
+      item.dirty = false; // undated to-dos live only on the to-do list
+      continue;
+    }
     if (!item.googleId && item.date < cutoff) continue;
     if (item.googleId && !item.dirty) continue;
     if (item.googleId) {
       try {
         // PATCH keeps anything added in Google (reminders, colour) intact.
-        await call("PATCH", `${API}/${encodeURIComponent(item.googleId)}`, toEvent(item));
+        await call("PATCH", `${API}/${encodeURIComponent(item.googleId)}`, toEvent({ ...item, date: item.date }));
         item.dirty = false;
         continue;
       } catch (err) {
@@ -159,7 +163,7 @@ async function push() {
         // Event vanished on Google's side: fall through and create it again.
       }
     }
-    const created = await call("POST", API, toEvent(item));
+    const created = await call("POST", API, toEvent({ ...item, date: item.date }));
     item.googleId = created.id;
     item.dirty = false;
   }
@@ -207,6 +211,7 @@ async function pull() {
 }
 
 let running: Promise<SyncResult> | null = null;
+const snapshot = () => JSON.stringify([data.items, data.google.events, data.google.connected, data.google.pendingDeletes]);
 type SyncResult = "synced" | "needs-sign-in" | "off";
 
 // interactive = started by a tap, so it may open the Google sign-in popup.
@@ -214,6 +219,7 @@ export function sync(interactive: boolean): Promise<SyncResult> {
   if (!interactive && !data.google.connected) return Promise.resolve("off");
   if (!interactive && !hasToken()) return Promise.resolve("needs-sign-in");
   running ??= (async (): Promise<SyncResult> => {
+    const before = snapshot();
     try {
       if (!hasToken()) await signIn();
       data.google.connected = true;
@@ -225,18 +231,30 @@ export function sync(interactive: boolean): Promise<SyncResult> {
       if (err instanceof GoogleError && err.status === 401 && !interactive) return "needs-sign-in";
       throw err;
     } finally {
-      save();
+      // Only redraw when something changed, so a background check doesn't
+      // wipe out something you're halfway through typing.
+      if (interactive || snapshot() !== before) save();
+      else persist();
       running = null;
     }
   })();
   return running;
 }
 
-// After local edits, push quietly in the background if we're signed in.
 let timer: number | undefined;
+
+// While the app is open and signed in, check Google for changes every minute
+// so the calendar stays current with what's in Google Calendar.
+export function startLiveSync() {
+  window.setInterval(() => {
+    if (document.visibilityState === "visible") sync(false).catch(() => {});
+  }, 60_000);
+}
+
+// After local edits, push quietly in the background if we're signed in.
 export function syncSoon() {
   if (!data.google.connected || !hasToken()) return;
-  if (!data.items.some((i) => i.dirty) && !data.google.pendingDeletes.length) return;
+  if (!data.items.some((i) => i.dirty && i.date) && !data.google.pendingDeletes.length) return;
   clearTimeout(timer);
   timer = window.setTimeout(() => sync(false).catch(() => {}), 1500);
 }

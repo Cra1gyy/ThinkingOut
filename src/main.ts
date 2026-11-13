@@ -1,22 +1,24 @@
 import "./style.css";
 import { h } from "./dom";
-import { sync, syncSoon } from "./google";
+import { startLiveSync, sync, syncSoon } from "./google";
 import { onChange } from "./store";
 import { calendarView } from "./views/calendar";
 import { settingsView } from "./views/settings";
 import { talkView } from "./views/talk";
-import { thoughtsView, thoughtView } from "./views/thoughts";
-import { topicsView, topicView } from "./views/topics";
+import { noteView, notesView } from "./views/notes";
+import { todoView } from "./views/todo";
+import { topicView } from "./views/topics";
 
 const TABS = [
   ["talk", "🎙", "Talk"],
-  ["thoughts", "💭", "Thoughts"],
-  ["topics", "📌", "Topics"],
+  ["notes", "📝", "Notes"],
   ["calendar", "📅", "Calendar"],
   ["settings", "⚙︎", "Settings"],
 ] as const;
 
-const SECTION_OF: Record<string, string> = { thought: "thoughts", topic: "topics" };
+const SECTION_OF: Record<string, string> = { note: "notes", todo: "notes", topic: "notes" };
+// Old links (shortcuts, bookmarks) from before Thoughts and Topics became Notes.
+const ALIASES: Record<string, string> = { thoughts: "notes", topics: "notes", thought: "note" };
 
 const main = h("main");
 const nav = h("nav", { class: "tabs" });
@@ -26,16 +28,16 @@ function route() {
   const [path, query = ""] = location.hash.replace(/^#\/?/, "").split("?");
   const [name = "talk", id = ""] = path.split("/");
   const params = new URLSearchParams(query);
-  return { name: name || "talk", id, params };
+  return { name: ALIASES[name] ?? (name || "talk"), id, params };
 }
 
 function render() {
   const { name, id, params } = route();
   const view =
-    name === "thought" ? thoughtView(id)
+    name === "note" ? noteView(id)
     : name === "topic" ? topicView(id)
-    : name === "thoughts" ? thoughtsView()
-    : name === "topics" ? topicsView()
+    : name === "notes" ? notesView()
+    : name === "todo" ? todoView()
     : name === "calendar" ? calendarView(params)
     : name === "settings" ? settingsView()
     : talkView(params);
@@ -67,6 +69,7 @@ render();
 // screen shows a button to sign in again.
 const backgroundSync = () => sync(false).catch(() => {});
 backgroundSync();
+startLiveSync();
 document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && backgroundSync());
 
 if ("serviceWorker" in navigator && import.meta.env.PROD) {

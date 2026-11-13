@@ -7,15 +7,16 @@ It's built for people who think by speaking rather than with an inner voice, and
 ## What it does
 
 - **Talk**: tap the mic and speak, or type. The words appear as you go. If you pick a topic first, its prompts show on screen.
-- **Make sense of it**: Claude turns the messy transcript into:
+- **Make sense of it**: Claude turns the messy transcript into a note:
+  - **titled by the overarching topic** you kept talking about, and filed with your other notes on that topic (it reuses an existing topic when it's the same subject)
   - a short summary, with each separate thought as its own bullet
   - decisions, open questions and themes
-  - **"You keep coming back to"**: the loops, including ones you repeated in earlier sessions on the same topic
+  - **"You keep coming back to"**: the loops, including ones you repeated in earlier notes on the same topic
   - **One next step**: something small to do now instead of thinking more
-  - to-dos with the dates worked out ("Friday", "next week"). One tap adds each one to the calendar.
-- **Thoughts**: every session, grouped by day and searchable, plus your loops from the last two weeks.
-- **Topics**: things you want to think about, with key notes to prompt you. Each topic collects what you've decided so far, what's still open and the loops that keep coming up.
-- **Calendar**: a month view and a "next 7 days" agenda. You can add things directly, tick them off and see which days you had thinking sessions. Anything you haven't finished carries over to the next days.
+  - to-dos, which go **straight onto your to-do list**. Dates you mention ("Friday", "next week") are worked out, and dated to-dos go on your calendar.
+- **Notes**: every note, grouped under its topic, plus your loops from the last two weeks. You can re-file a note under a different topic, or start a topic with key notes to prompt you.
+- **To-do**: everything you need to do, sorted into overdue, today, upcoming and anytime. Give a to-do a date and it goes on your calendar (and Google Calendar); clear the date and it comes off again.
+- **Calendar**: a month view and a "next 7 days" agenda showing your to-dos, your Google events and the days you made notes.
 
 ## Setup
 
@@ -29,7 +30,7 @@ Then open **Settings** in the app and paste in a Claude API key from https://con
 
 ### Google Calendar (optional)
 
-Settings → Google Calendar connects your main Google calendar. Your ThinkingOut to-dos are added as events: all-day if they have no time, one hour long if they do. Your Google events show in the Calendar tab with a blue **G**. Sync works both ways, so moving or deleting one of your to-dos in Google changes it here too. Ticked-off items get a ✓ in Google.
+Settings → Google Calendar connects your main Google calendar. Dated to-dos are added as events: all-day if they have no time, one hour long if they do. Undated to-dos stay on the to-do list only. While the app is open it checks Google every minute, so new or changed events show up on their own. Your Google events show in the Calendar tab with a blue **G**. Sync works both ways, so moving or deleting one of your to-dos in Google changes it here too. Ticked-off items get a ✓ in Google.
 
 It runs entirely in the browser, so it needs a free OAuth Client ID from your own Google Cloud project. The app shows the steps. While the Google project is in "Testing" mode, Google shows an "unverified app" warning when you sign in, which is expected for your own app. Sign-ins last about an hour; after that, the Calendar screen shows a **Sign in to sync** button, and changes you make in the meantime are saved and sent on the next sync.
 
