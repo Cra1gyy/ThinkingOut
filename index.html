@@ -18,6 +18,13 @@
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icon-192.png" />
     <title>ThinkingOut</title>
+    <script>
+      // Apply a chosen light/dark theme before first paint (see src/theme.ts).
+      try {
+        var t = (JSON.parse(localStorage.getItem("thinkingout:v1") || "{}").settings || {}).theme;
+        if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="app"></div>

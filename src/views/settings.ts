@@ -1,4 +1,5 @@
 import { markers, swatches } from "../colors";
+import { currentTheme, setTheme, type Theme } from "../theme";
 import { h, toast } from "../dom";
 import { disconnect, googleStatus, sync } from "../google";
 import { budget } from "../budget";
@@ -39,6 +40,7 @@ export function settingsView(): HTMLElement {
     "div",
     { class: "view" },
     h("h1", null, "Settings"),
+    appearanceSection(),
     h(
       "section",
       { class: "block form" },
@@ -59,7 +61,7 @@ export function settingsView(): HTMLElement {
       h(
         "p",
         { class: "muted small" },
-        "Get a key at console.anthropic.com. It is stored only in this browser and sent only to Anthropic. Transcripts are sent to Claude only when you tap “Make sense of it”. ",
+        "Get a key at console.anthropic.com. It is stored only in this browser and sent only to Anthropic. Notes are sent to Claude only when you tap “Save & sort” (or Re-sort). ",
         h("strong", null, "To make overspending impossible on your account too:"),
         " buy a small amount of prepaid credit (e.g. $5) and leave auto-reload off. Then the most Claude can ever cost is what you've loaded.",
       ),
@@ -206,5 +208,32 @@ function colourSection() {
     h("label", null, "To-dos without a colour", swatches(m.todo, set("todo"), "Default (white in dark mode, black in light)")),
     h("label", null, "Days where everything's done", swatches(m.done, set("done"))),
     h("label", null, "Days you made notes", swatches(m.note, set("note"))),
+  );
+}
+
+// Light, dark, or follow the phone.
+function appearanceSection() {
+  const now = currentTheme();
+  const options: [Theme, string][] = [
+    ["system", "System"],
+    ["light", "Light"],
+    ["dark", "Dark"],
+  ];
+  return h(
+    "section",
+    { class: "block form" },
+    h("h3", null, "Appearance"),
+    h(
+      "div",
+      { class: "seg seg-wide", role: "radiogroup", "aria-label": "Appearance" },
+      options.map(([value, label]) =>
+        h(
+          "button",
+          { type: "button", role: "radio", "aria-checked": String(now === value), class: now === value ? "on" : "", onclick: () => setTheme(value) },
+          label,
+        ),
+      ),
+    ),
+    h("p", { class: "muted small" }, now === "system" ? "Following your phone's light or dark mode." : `Always ${now}, whatever your phone is set to.`),
   );
 }

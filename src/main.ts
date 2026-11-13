@@ -1,5 +1,6 @@
 import "./style.css";
 import { applyMarkerColors } from "./colors";
+import { applyTheme } from "./theme";
 import { h } from "./dom";
 import { icon, type IconName } from "./icons";
 import { startLiveSync, sync, syncSoon } from "./google";
@@ -36,6 +37,7 @@ function route() {
 }
 
 function render() {
+  applyTheme();
   applyMarkerColors();
   const { name, id, params } = route();
   const view =

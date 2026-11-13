@@ -85,6 +85,7 @@ export interface Settings {
   model: string;
   budget?: { limit: number; month: string; spent: number }; // US$, see budget.ts
   markers?: { todo?: string | null; done?: string | null; note?: string | null }; // calendar dot colours
+  theme?: "system" | "light" | "dark"; // see theme.ts
 }
 
 interface Data {

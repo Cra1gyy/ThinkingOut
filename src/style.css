@@ -25,8 +25,24 @@
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   color-scheme: light;
 }
+/* Dark: when chosen in Settings, or when the phone is dark and Light wasn't chosen. */
+:root[data-theme="dark"] {
+    --bg: #000000;
+    --surface: #111111;
+    --surface-2: #1c1c1c;
+    --text: #f4f4f4;
+    --muted: #8c8c8c;
+    --faint: #555555;
+    --line: #242424;
+    --dotgrid: rgb(255 255 255 / 0.06);
+    --accent: #e8232b;
+    --accent-soft: rgb(232 35 43 / 0.14);
+    --invert-bg: #f4f4f4;
+    --invert-text: #000000;
+    color-scheme: dark;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #000000;
     --surface: #111111;
     --surface-2: #1c1c1c;
@@ -461,8 +477,16 @@ a.topic-title::after { content: " ›"; color: var(--faint); font-family: var(--
 .item.plain .check:checked {
   background: var(--text) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center / 14px no-repeat;
 }
+/* Dark tick on the light circle of an uncoloured to-do. */
+:root[data-theme="dark"] .item.plain .check:checked { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E"); }
 @media (prefers-color-scheme: dark) {
-  .item.plain .check:checked {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E");
-  }
+  :root:not([data-theme="light"]) .item.plain .check:checked { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E"); }
 }
+
+/* Segmented control made of buttons, full width (Settings → Appearance) */
+.seg-wide { display: flex; }
+.seg-wide button {
+  flex: 1; justify-content: center; border: none; background: transparent; color: var(--muted); padding: 9px 10px;
+  font: 500 0.72rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em;
+}
+.seg-wide button.on { background: var(--invert-bg); color: var(--invert-text); }
