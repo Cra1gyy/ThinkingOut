@@ -114,7 +114,7 @@ function toEvent(item: CalendarItem & { date: string }) {
   }
   return {
     summary: (item.done ? DONE : "") + item.title,
-    description: item.notes ? `From ThinkingOut: ${item.notes}` : "From ThinkingOut",
+    description: [item.details, item.notes ? `From ThinkingOut: ${item.notes}` : "From ThinkingOut"].filter(Boolean).join("\n\n"),
     start,
     end,
     extendedProperties: { private: { thinkingoutId: item.id } },

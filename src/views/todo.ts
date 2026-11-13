@@ -3,7 +3,7 @@ import { h, toast } from "../dom";
 import { addDays, prettyDate, todayIso } from "../dates";
 import { googleStatus, sync } from "../google";
 import { icon } from "../icons";
-import { addItem, data, noteTitle, removeItem, sessionById, updateItem, type CalendarItem } from "../store";
+import { addItem, data, noteTitle, redraw, removeItem, sessionById, updateItem, type CalendarItem } from "../store";
 
 const byWhen = (a: CalendarItem, b: CalendarItem) =>
   (a.date ?? "9999").localeCompare(b.date ?? "9999") || (a.time ?? "99").localeCompare(b.time ?? "99");
@@ -36,9 +36,29 @@ function pickerChip(type: "date" | "time", value: string | null, label: string, 
   return h("label", { class: `pick-chip ${cls}` }, label, input);
 }
 
-// One to-do. `showDate` adds the date chip, so it can be scheduled (and synced
-// to Google Calendar) or cleared back to "anytime" right from the list.
-export function todoRow(item: CalendarItem, showDate = false) {
+// The to-do open for editing (only one at a time). Kept here, outside the
+// row, so a background redraw (e.g. a Google sync) doesn't lose your changes.
+let editing: { id: string; title: string; details: string; date: string | null; time: string | null; color: string | null } | null = null;
+
+function openEditor(item: CalendarItem) {
+  editing = { id: item.id, title: item.title, details: item.details ?? "", date: item.date, time: item.time, color: item.color ?? null };
+  redraw();
+}
+
+// Leaving the page drops an unsaved edit rather than reopening it later.
+export function resetEditor() {
+  editing = null;
+}
+
+function closeEditor() {
+  editing = null;
+  redraw();
+}
+
+// One to-do. Tap it (or its pencil) to open it up and edit everything.
+// `showDate` adds the date chip, so it can be rescheduled straight from the list.
+export function todoRow(item: CalendarItem, showDate = false): HTMLLIElement {
+  if (editing?.id === item.id) return editorRow(item, showDate);
   const session = sessionById(item.sessionId);
   const overdue = !item.done && item.date && item.date < todayIso();
   // Tapping the colour dot opens a row of colours under the to-do.
@@ -52,30 +72,137 @@ export function todoRow(item: CalendarItem, showDate = false) {
       dot.setAttribute("aria-expanded", String(!palette.hidden));
     },
   });
+  const body = h(
+    "div",
+    {
+      class: "item-body",
+      role: "button",
+      tabindex: 0,
+      "aria-label": `Edit “${item.title}”`,
+      // Chips and links inside keep doing their own thing.
+      onclick: (e: Event) => {
+        if (!(e.target as HTMLElement).closest("a, label, input, button")) openEditor(item);
+      },
+      onkeydown: (e: KeyboardEvent) => {
+        if ((e.key === "Enter" || e.key === " ") && e.target === body) {
+          e.preventDefault();
+          openEditor(item);
+        }
+      },
+    },
+    h("span", { class: "item-title" }, item.title),
+    item.details ? h("span", { class: "item-details" }, item.details) : null,
+    h(
+      "span",
+      { class: "meta" },
+      showDate
+        ? pickerChip("date", item.date, item.date ? dayLabel(item.date) : "+ Date", (v) => updateItem(item, { date: v }), overdue ? "late" : "")
+        : null,
+      item.time ? h("span", { class: "meta-time" }, item.time) : null,
+      item.googleId ? h("span", { class: "g-synced", title: "On your Google Calendar" }, "G") : null,
+      session ? h("a", { class: "meta-link", href: `#/note/${session.id}` }, noteTitle(session)) : item.notes ? h("span", null, item.notes) : null,
+    ),
+  );
   return h(
     "li",
     // "plain" = no colour of its own: the tick then uses the page colours so it stays visible.
     { class: `item${item.done ? " done" : ""}${todoColor(item.color).startsWith("var(") ? " plain" : ""}`, style: `--c:${todoColor(item.color)}` },
     h("input", { type: "checkbox", class: "check", checked: item.done, "aria-label": "Done", onchange: () => updateItem(item, { done: !item.done }) }),
-    h(
-      "div",
-      { class: "item-body" },
-      h("span", { class: "item-title" }, item.title),
-      h(
-        "span",
-        { class: "meta" },
-        showDate
-          ? pickerChip("date", item.date, item.date ? dayLabel(item.date) : "+ Date", (v) => updateItem(item, { date: v }), overdue ? "late" : "")
-          : null,
-        item.time ? h("span", { class: "meta-time" }, item.time) : null,
-        item.googleId ? h("span", { class: "g-synced", title: "On your Google Calendar" }, "G") : null,
-        session ? h("a", { class: "meta-link", href: `#/note/${session.id}` }, noteTitle(session)) : item.notes ? h("span", null, item.notes) : null,
-      ),
-    ),
+    body,
     dot,
-    h("button", { class: "item-x", "aria-label": "Delete", onclick: () => removeItem(item) }, "✕"),
+    h("button", { class: "item-edit", "aria-label": `Edit “${item.title}”`, onclick: () => openEditor(item) }, icon("edit")),
     palette,
   );
+}
+
+// The opened-up to-do: text, details, date, time, colour, and save / delete.
+function editorRow(item: CalendarItem, showDate: boolean): HTMLLIElement {
+  const draft = editing!;
+  const session = sessionById(item.sessionId);
+  const rebuild = () => li.replaceWith(todoRow(item, showDate));
+
+  const save = () => {
+    const title = draft.title.trim();
+    if (!title) {
+      toast("A to-do needs some text");
+      titleInput.focus();
+      return;
+    }
+    editing = null;
+    updateItem(item, {
+      title,
+      details: draft.details.trim() || null,
+      date: draft.date,
+      time: draft.date ? draft.time : null,
+      color: draft.color,
+    });
+  };
+
+  const titleInput = h("input", {
+    class: "edit-title",
+    value: draft.title,
+    "aria-label": "To-do",
+    oninput: () => (draft.title = titleInput.value),
+    onkeydown: (e: KeyboardEvent) => {
+      if (e.key === "Enter") save();
+      if (e.key === "Escape") closeEditor();
+    },
+  });
+  const details = h("textarea", {
+    class: "edit-details",
+    rows: 2,
+    placeholder: "Details",
+    value: draft.details,
+    "aria-label": "Details",
+    oninput: () => (draft.details = details.value),
+    onkeydown: (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeEditor();
+    },
+  });
+
+  const li: HTMLLIElement = h(
+    "li",
+    { class: "item editing", style: `--c:${todoColor(draft.color)}` },
+    h("span", { class: "edit-label" }, "Edit to-do"),
+    titleInput,
+    details,
+    h(
+      "div",
+      { class: "chips-row" },
+      pickerChip("date", draft.date, draft.date ? dayLabel(draft.date) : "+ Date", (v) => {
+        draft.date = v;
+        if (!v) draft.time = null;
+        rebuild();
+      }, draft.date ? "set" : ""),
+      draft.date
+        ? pickerChip("time", draft.time, draft.time ?? "+ Time", (v) => {
+            draft.time = v;
+            rebuild();
+          }, draft.time ? "set" : "")
+        : null,
+      draft.date
+        ? h("button", { type: "button", class: "pick-chip", onclick: () => ((draft.date = null), (draft.time = null), rebuild()) }, "Anytime")
+        : null,
+      h("span", { class: "quick-hint" }, draft.date ? "On your calendar" : "No date"),
+    ),
+    swatches(draft.color, (c) => {
+      draft.color = c;
+      li.style.setProperty("--c", todoColor(c));
+    }),
+    session ? h("a", { class: "meta-link edit-source", href: `#/note/${session.id}` }, `From: ${noteTitle(session)}`) : null,
+    h(
+      "div",
+      { class: "edit-actions" },
+      h("button", { type: "button", class: "ghost danger small", onclick: () => ((editing = null), removeItem(item)) }, "Delete"),
+      h("button", { type: "button", class: "ghost small", onclick: closeEditor }, "Cancel"),
+      h("button", { type: "button", class: "primary small", onclick: save }, "Save"),
+    ),
+  );
+  // Put the cursor in the text the moment it opens.
+  requestAnimationFrame(() => {
+    if (document.activeElement === document.body) titleInput.focus({ preventScroll: true });
+  });
+  return li;
 }
 
 // Google Calendar status with a sync / sign-in button. Sign-ins last an hour,

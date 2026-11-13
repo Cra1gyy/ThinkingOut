@@ -10,7 +10,7 @@ import { settingsView } from "./views/settings";
 import { talkView } from "./views/talk";
 import { collectionView, collectionsView } from "./views/collections";
 import { noteView, notesView } from "./views/notes";
-import { todoView } from "./views/todo";
+import { resetEditor, todoView } from "./views/todo";
 import { topicView } from "./views/topics";
 
 const TABS: [string, IconName, string][] = [
@@ -67,6 +67,7 @@ function render() {
 
 let lastHash = "";
 window.addEventListener("hashchange", () => {
+  resetEditor();
   render();
   if (location.hash !== lastHash) window.scrollTo(0, 0);
   lastHash = location.hash;

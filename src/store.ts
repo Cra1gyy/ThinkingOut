@@ -57,6 +57,7 @@ export interface CalendarItem {
   done: boolean;
   sessionId: string | null;
   color?: string | null; // Google Calendar colorId, see colors.ts
+  details?: string | null; // your own notes under the to-do
   googleId?: string | null; // event id once pushed to Google Calendar
   dirty?: boolean; // changed locally since the last push
 }
@@ -134,6 +135,11 @@ export function persist() {
 
 export function save() {
   persist();
+  redraw();
+}
+
+// Redraw the screen without changing any data (e.g. opening a to-do to edit).
+export function redraw() {
   listeners.forEach((fn) => fn());
 }
 
