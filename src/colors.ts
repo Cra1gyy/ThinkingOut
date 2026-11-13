@@ -25,14 +25,15 @@ export const colorHex = (id: string | null | undefined) => COLORS.find((c) => c.
 export const markerDefaults = { todo: null as string | null, done: "2", note: "5" };
 export const markers = () => ({ ...markerDefaults, ...data.settings.markers });
 
-// Colour of a to-do: its own, else the default to-do colour, else the app accent.
-export const todoColor = (color: string | null | undefined) => colorHex(color) ?? colorHex(markers().todo) ?? "var(--accent)";
+// Colour of a to-do: its own, else the default to-do colour, else plain text colour
+// (red is kept for recording, today and overdue).
+export const todoColor = (color: string | null | undefined) => colorHex(color) ?? colorHex(markers().todo) ?? "var(--text)";
 
 // Apply the marker colours as CSS variables used by the calendar dots.
 export function applyMarkerColors() {
   const m = markers();
   const root = document.documentElement.style;
-  root.setProperty("--dot-todo", colorHex(m.todo) ?? "var(--accent)");
+  root.setProperty("--dot-todo", colorHex(m.todo) ?? "var(--text)");
   root.setProperty("--dot-done", colorHex(m.done) ?? "var(--good)");
   root.setProperty("--dot-note", colorHex(m.note) ?? "var(--warn)");
 }

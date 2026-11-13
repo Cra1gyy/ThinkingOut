@@ -203,7 +203,7 @@ function colourSection() {
     { class: "block form" },
     h("h3", null, "Calendar colours"),
     h("p", { class: "muted small" }, "Give any to-do its own colour by tapping its dot. These set the defaults."),
-    h("label", null, "To-dos without a colour", swatches(m.todo, set("todo"), "App purple")),
+    h("label", null, "To-dos without a colour", swatches(m.todo, set("todo"), "Default (white in dark mode, black in light)")),
     h("label", null, "Days where everything's done", swatches(m.done, set("done"))),
     h("label", null, "Days you made notes", swatches(m.note, set("note"))),
   );

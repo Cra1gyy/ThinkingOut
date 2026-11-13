@@ -1,4 +1,5 @@
 import { bulletList, go, h } from "../dom";
+import { icon } from "../icons";
 import { todoRow } from "./todo";
 import { localDayOf, prettyDate } from "../dates";
 import { data, save, topicById } from "../store";
@@ -24,7 +25,7 @@ export function topicView(id: string): HTMLElement {
     { class: "view" },
     h("a", { href: "#/notes", class: "back" }, "‹ Notes"),
     h("h1", null, t.title),
-    h("button", { class: "primary big", onclick: () => go(`#/talk?topic=${t.id}&start=1`) }, "🎙  Talk this through"),
+    h("button", { class: "primary big", onclick: () => go(`#/talk?topic=${t.id}&start=1`) }, icon("mic"), "Talk this through"),
     bulletList("Key notes", t.prompts, "prompts"),
     // Everything learned across sessions, so you can see progress rather than re-think it.
     sorted.length

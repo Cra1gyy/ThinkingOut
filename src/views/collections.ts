@@ -2,9 +2,10 @@
 // notes into, like Essential Space's collections. A note can be in several.
 
 import { go, h, toast } from "../dom";
+import { icon } from "../icons";
 import { thumb } from "../images";
 import { addCollection, collectionById, data, noteTitle, notesIn, removeCollection, save, setInCollection, type Collection, type Session } from "../store";
-import { noteRow } from "./notes";
+import { noteRow, notesTabs } from "./notes";
 
 export function newCollection(): Collection | null {
   const name = prompt("Name the collection (e.g. Film ideas)")?.trim();
@@ -27,12 +28,15 @@ function collectionCard(c: Collection) {
   );
 }
 
-// The grid at the top of the Notes tab.
-export function collectionsGrid() {
+// Notes → Collections: a grid of your collections.
+export function collectionsView(): HTMLElement {
   return h(
-    "section",
-    { class: "collections" },
-    h("h3", null, "Collections"),
+    "div",
+    { class: "view" },
+    notesTabs("collections"),
+    data.collections.length
+      ? null
+      : h("p", { class: "muted" }, "Collections are folders you name yourself, like film ideas or race times. A note can go in more than one."),
     h(
       "div",
       { class: "coll-grid" },
@@ -46,7 +50,7 @@ export function collectionsGrid() {
             if (c) go(`#/collection/${c.id}`);
           },
         },
-        h("span", { class: "coll-plus" }, "+"),
+        icon("plus", "coll-plus"),
         h("span", null, "New collection"),
       ),
     ),
@@ -92,12 +96,12 @@ export function collectionChips(s: Session) {
 
 export function collectionView(id: string, params: URLSearchParams): HTMLElement {
   const c = collectionById(id);
-  if (!c) return h("div", { class: "view" }, h("p", null, "That collection was not found."), h("a", { href: "#/notes" }, "Back"));
+  if (!c) return h("div", { class: "view" }, h("p", null, "That collection was not found."), h("a", { href: "#/collections" }, "Back"));
   const notes = notesIn(c);
   const adding = params.get("add") === "1";
 
   const header = [
-    h("a", { href: "#/notes", class: "back" }, "‹ Notes"),
+    h("a", { href: "#/collections", class: "back" }, "‹ Collections"),
     h("h1", null, c.name),
     h("p", { class: "muted" }, `${notes.length} note${notes.length === 1 ? "" : "s"}`),
   ];
@@ -112,7 +116,7 @@ export function collectionView(id: string, params: URLSearchParams): HTMLElement
       "div",
       { class: "row" },
       h("button", { class: "primary", onclick: () => go(`#/collection/${c.id}?add=1`) }, "Add notes"),
-      h("button", { onclick: () => go(`#/talk?collection=${c.id}`) }, "🎙 Capture into this"),
+      h("button", { onclick: () => go(`#/talk?collection=${c.id}`) }, icon("mic"), "Capture into this"),
     ),
     notes.length
       ? h(
@@ -154,7 +158,7 @@ export function collectionView(id: string, params: URLSearchParams): HTMLElement
             onclick: () => {
               if (!confirm(`Delete “${c.name}”? The notes in it are kept.`)) return;
               removeCollection(c);
-              go("#/notes");
+              go("#/collections");
             },
           },
           "Delete collection",

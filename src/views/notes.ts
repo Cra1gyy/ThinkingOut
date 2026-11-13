@@ -4,20 +4,19 @@ import { go, h, toast } from "../dom";
 import { localDayOf, prettyDate, prettyDateTime } from "../dates";
 import { data, noteTitle, save, sessionById, topicById, uid, type Session, type Topic } from "../store";
 import { analysisCard } from "./analysis";
-import { collectionChips, collectionsGrid } from "./collections";
+import { collectionChips } from "./collections";
 
-// The Notes tab holds two lists: notes (by topic) and the to-do list.
-export function notesTabs(on: "notes" | "todo") {
-  const open = data.items.filter((i) => !i.done).length;
+// The Notes tab has two views: notes (grouped by topic) and your collections.
+export function notesTabs(on: "notes" | "collections") {
   return h(
     "header",
-    { class: "row between" },
-    h("h1", null, on === "notes" ? "Notes" : "To-do"),
+    { class: "page-head" },
+    h("h1", null, "Notes"),
     h(
       "div",
       { class: "seg" },
-      h("a", { class: on === "notes" ? "on" : "", href: "#/notes" }, "Notes"),
-      h("a", { class: on === "todo" ? "on" : "", href: "#/todo" }, `To-do${open ? ` (${open})` : ""}`),
+      h("a", { class: on === "notes" ? "on" : "", href: "#/notes" }, `Notes ${data.sessions.length}`),
+      h("a", { class: on === "collections" ? "on" : "", href: "#/collections" }, `Collections ${data.collections.length}`),
     ),
   );
 }
@@ -112,14 +111,13 @@ export function notesView(): HTMLElement {
           h("ul", null, recentLoops.map(({ l, s }) => h("li", null, l, " ", h("a", { href: `#/note/${s.id}`, class: "muted small" }, prettyDate(localDayOf(s.createdAt)))))),
         )
       : null,
-    collectionsGrid(),
-    h("h3", { class: "section-title" }, "All notes by topic"),
+    h("h3", { class: "section-title" }, "By topic"),
     search,
     list,
     h(
       "details",
       { class: "block form" },
-      h("summary", null, "+ New topic to think about"),
+      h("summary", null, "New topic to think about"),
       h("p", { class: "muted small" }, "Notes are filed under topics automatically. Make one yourself when you want key notes to prompt you while you talk."),
       title,
       prompts,

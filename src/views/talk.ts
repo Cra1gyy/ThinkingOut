@@ -1,5 +1,6 @@
 import { describeError, startAnalysis } from "../ai";
 import { go, h, toast } from "../dom";
+import { icon } from "../icons";
 import { addImage, removeImages, takeSharedInbox, thumb } from "../images";
 import { listen, speechSupported, type Listener } from "../speech";
 import { collectionById, data, save, topicById, uid, type Session } from "../store";
@@ -41,7 +42,7 @@ export function talkView(params: URLSearchParams): HTMLElement {
   const interim = h("p", { class: "interim muted" });
   const timer = h("span", { class: "timer muted" });
   const micLabel = h("span");
-  const mic = h("button", { class: "mic", "aria-label": "Talk: tap to start or stop, or hold and release" }, h("span", { class: "mic-dot" }), micLabel);
+  const mic = h("button", { class: "mic", "aria-label": "Talk: tap to start or stop, or hold and release" }, h("span", { class: "mic-dot" }, icon("mic", "mic-glyph")), micLabel);
   const sortBtn = h("button", { class: "primary", onclick: () => finish(true) }, "Save & sort");
   const saveBtn = h("button", { onclick: () => finish(false) }, "Just save");
   const strip = h("div", { class: "strip" });
@@ -118,8 +119,8 @@ export function talkView(params: URLSearchParams): HTMLElement {
           ),
         ),
       ),
-      h("button", { class: "strip-add", onclick: () => picker.click() }, "🖼", h("span", null, "Screenshot or photo")),
-      h("button", { class: "strip-add", onclick: () => camera.click() }, "📷", h("span", null, "Camera")),
+      h("button", { class: "strip-add", onclick: () => picker.click() }, icon("image"), h("span", null, "Image")),
+      h("button", { class: "strip-add", onclick: () => camera.click() }, icon("camera"), h("span", null, "Camera")),
     );
     refresh();
   }
@@ -250,7 +251,7 @@ export function talkView(params: URLSearchParams): HTMLElement {
   const view = h(
     "div",
     { class: "view talk" },
-    h("header", { class: "row between" }, h("h1", null, "Think out loud"), topicSelect),
+    h("header", { class: "page-head" }, h("h1", null, "Think out loud"), topicSelect),
     topic && topic.prompts.length
       ? h(
           "section",

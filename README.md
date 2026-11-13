@@ -6,6 +6,9 @@ It's built for people who think by speaking rather than with an inner voice, and
 
 ## What it does
 
+The look takes its cues from Nothing OS: monochrome with one red accent, dot-matrix headings and icons (the free [Doto](https://fonts.google.com/specimen/Doto) font standing in for Nothing's own), Geist for reading, and small uppercase mono labels. It follows your phone's light or dark mode. Five tabs along the bottom: **Talk**, **Notes** (notes by topic, and collections), **To-do**, **Calendar** and **Settings**.
+
+
 - **Talk**: tap the mic to start and stop, or **hold it while you talk and let go to save**. You can type too. Add **screenshots or photos** from your gallery or camera, or share them in from any app. If you pick a topic first, its prompts show on screen.
 - **Saved straight away**: a capture is saved the moment you finish, and Claude sorts it in the background ("Analyzing…") while you carry on.
 - **Sorting**: Claude turns what you said and any images into a note:
@@ -16,8 +19,8 @@ It's built for people who think by speaking rather than with an inner voice, and
   - **One next step**: something small to do now instead of thinking more
   - to-dos, which go **straight onto your to-do list**. Dates you mention ("Friday", "next week") are worked out, and dated to-dos go on your calendar.
 - **Notes**: every note, grouped under its topic, with image thumbnails. You can edit anything Claude wrote and share a note as Markdown, plus your loops from the last two weeks. You can re-file a note under a different topic, or start a topic with key notes to prompt you.
-- **Collections**: folders you name yourself (film ideas, racing, general ideas…) at the top of the Notes tab. Add notes from a note's page, tick several at once from the collection, or pick a collection on the Talk screen to capture straight into it. A note can be in more than one collection.
-- **To-do**: everything you need to do, sorted into overdue, today, upcoming and anytime. Give a to-do a date and it goes on your calendar (and Google Calendar); clear the date and it comes off again. Tap a to-do's dot to give it a colour; the colour shows on the calendar and on the event in Google Calendar (they're Google's own event colours).
+- **Collections**: folders you name yourself (film ideas, racing, general ideas…), under Notes → Collections. Add notes from a note's page, tick several at once from the collection, or pick a collection on the Talk screen to capture straight into it. A note can be in more than one collection.
+- **To-do**: its own tab, with overdue / today / later counts at the top, a quick-add bar (tap the date, time and colour chips to set them) and everything sorted into overdue, today, upcoming and anytime. Give a to-do a date and it goes on your calendar (and Google Calendar); clear the date and it comes off again. Tap a to-do's dot to give it a colour; the colour shows on the calendar and on the event in Google Calendar (they're Google's own event colours).
 - **Calendar**: a month view and a "next 7 days" agenda showing your to-dos (in their colours), your Google events (in their Google colours) and the days you made notes. Settings → Calendar colours changes the default to-do, "all done" and notes colours.
 
 ## Setup

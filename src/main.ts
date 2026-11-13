@@ -1,24 +1,26 @@
 import "./style.css";
 import { applyMarkerColors } from "./colors";
 import { h } from "./dom";
+import { icon, type IconName } from "./icons";
 import { startLiveSync, sync, syncSoon } from "./google";
 import { onChange } from "./store";
 import { calendarView } from "./views/calendar";
 import { settingsView } from "./views/settings";
 import { talkView } from "./views/talk";
-import { collectionView } from "./views/collections";
+import { collectionView, collectionsView } from "./views/collections";
 import { noteView, notesView } from "./views/notes";
 import { todoView } from "./views/todo";
 import { topicView } from "./views/topics";
 
-const TABS = [
-  ["talk", "🎙", "Talk"],
-  ["notes", "📝", "Notes"],
-  ["calendar", "📅", "Calendar"],
-  ["settings", "⚙︎", "Settings"],
-] as const;
+const TABS: [string, IconName, string][] = [
+  ["talk", "mic", "Talk"],
+  ["notes", "notes", "Notes"],
+  ["todo", "todo", "To-do"],
+  ["calendar", "calendar", "Calendar"],
+  ["settings", "settings", "Settings"],
+];
 
-const SECTION_OF: Record<string, string> = { note: "notes", todo: "notes", topic: "notes", collection: "notes" };
+const SECTION_OF: Record<string, string> = { note: "notes", topic: "notes", collection: "notes", collections: "notes" };
 // Old links (shortcuts, bookmarks) from before Thoughts and Topics became Notes.
 const ALIASES: Record<string, string> = { thoughts: "notes", topics: "notes", thought: "note" };
 
@@ -41,6 +43,7 @@ function render() {
     : name === "topic" ? topicView(id)
     : name === "collection" ? collectionView(id, params)
     : name === "notes" ? notesView()
+    : name === "collections" ? collectionsView()
     : name === "todo" ? todoView()
     : name === "calendar" ? calendarView(params)
     : name === "settings" ? settingsView()
@@ -49,8 +52,13 @@ function render() {
 
   const section = SECTION_OF[name] ?? name;
   nav.replaceChildren(
-    ...TABS.map(([tab, icon, label]) =>
-      h("a", { href: `#/${tab}`, class: section === tab ? "on" : "" }, h("span", { class: "icon" }, icon), h("span", null, label)),
+    ...TABS.map(([tab, glyph, label]) =>
+      h(
+        "a",
+        { href: `#/${tab}`, class: section === tab ? "on" : "", "aria-current": section === tab ? "page" : null },
+        icon(glyph, "tab-icon"),
+        h("span", null, label),
+      ),
     ),
   );
 }
