@@ -529,3 +529,13 @@ a.topic-title::after { content: " ›"; color: var(--faint); font-family: var(--
 .daily-input:focus { border-color: transparent; }
 .daily-go { width: 36px; height: 36px; padding: 0; justify-content: center; flex: none; }
 .daily-go .icon { width: 13px; height: 13px; fill: currentColor; }
+
+/* Swiping between sibling pages */
+.slide-from-right { animation: slide-from-right 0.22s ease-out; }
+.slide-from-left { animation: slide-from-left 0.22s ease-out; }
+@keyframes slide-from-right { from { transform: translateX(28px); opacity: 0.4; } }
+@keyframes slide-from-left { from { transform: translateX(-28px); opacity: 0.4; } }
+.swipe-hint { text-align: center; color: var(--faint); font: 500 0.62rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.12em; margin: 4px 0 0; }
+@media (prefers-reduced-motion: reduce) { .slide-from-right, .slide-from-left { animation: none; } }
+/* Fill the screen so a swipe on empty space below short lists still counts. */
+main { min-height: 100vh; min-height: 100dvh; }

@@ -46,3 +46,56 @@ export const bulletList = (title: string, items: string[], cls = "") =>
   items.length
     ? h("section", { class: `block ${cls}` }, h("h3", null, title), h("ul", null, items.map((i) => h("li", null, i))))
     : null;
+
+// ---- swiping between sibling pages (To-do ⇄ Daily, Notes ⇄ Collections) ----
+
+let slideFrom: "left" | "right" | null = null;
+
+// Go to a sibling page, sliding in from the side it lives on.
+export function slideTo(hash: string, from: "left" | "right") {
+  slideFrom = from;
+  go(hash);
+}
+
+// The direction the next page should slide in from (read once by the renderer).
+export function takeSlide() {
+  const s = slideFrom;
+  slideFrom = null;
+  return s;
+}
+
+// A quick horizontal flick anywhere on `el` moves to the previous / next page
+// that `pages()` gives for the current screen. Ignored while typing, in
+// horizontally scrolling rows, or in an open editor.
+export function swipePages(el: HTMLElement, pages: () => [string | null, string | null] | undefined) {
+  let x0 = 0;
+  let y0 = 0;
+  let t0 = 0;
+  let ok = false;
+  el.addEventListener(
+    "touchstart",
+    (e) => {
+      const t = e.touches[0];
+      const target = e.target as HTMLElement;
+      ok = e.touches.length === 1 && !target.closest("input, textarea, select, .strip, .swatches, .gallery, .item.editing, .chips-row");
+      x0 = t.clientX;
+      y0 = t.clientY;
+      t0 = Date.now();
+    },
+    { passive: true },
+  );
+  el.addEventListener(
+    "touchend",
+    (e) => {
+      if (!ok) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - x0;
+      const dy = t.clientY - y0;
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5 || Date.now() - t0 > 800) return;
+      const [prev, next] = pages() ?? [null, null];
+      if (dx < 0 && next) slideTo(next, "right");
+      else if (dx > 0 && prev) slideTo(prev, "left");
+    },
+    { passive: true },
+  );
+}

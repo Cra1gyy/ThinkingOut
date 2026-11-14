@@ -2,7 +2,7 @@ import "./style.css";
 import { applyMarkerColors } from "./colors";
 import { applyTheme } from "./theme";
 import { todayIso } from "./dates";
-import { h } from "./dom";
+import { h, swipePages, takeSlide } from "./dom";
 import { icon, type IconName } from "./icons";
 import { startLiveSync, sync, syncSoon } from "./google";
 import { onChange } from "./store";
@@ -11,7 +11,7 @@ import { settingsView } from "./views/settings";
 import { talkView } from "./views/talk";
 import { collectionView, collectionsView } from "./views/collections";
 import { noteView, notesView } from "./views/notes";
-import { resetDailyEditor } from "./views/daily";
+import { dailyView, resetDailyEditor } from "./views/daily";
 import { resetEditor, todoView } from "./views/todo";
 import { topicView } from "./views/topics";
 
@@ -23,13 +23,22 @@ const TABS: [string, IconName, string][] = [
   ["settings", "settings", "Settings"],
 ];
 
-const SECTION_OF: Record<string, string> = { note: "notes", topic: "notes", collection: "notes", collections: "notes" };
+const SECTION_OF: Record<string, string> = { note: "notes", topic: "notes", collection: "notes", collections: "notes", daily: "todo" };
+// Pages that sit side by side under one tab: swipe left / right between them.
+const SIBLINGS: Record<string, [string | null, string | null]> = {
+  todo: [null, "#/daily"],
+  daily: ["#/todo", null],
+  notes: [null, "#/collections"],
+  collections: ["#/notes", null],
+};
 // Old links (shortcuts, bookmarks) from before Thoughts and Topics became Notes.
 const ALIASES: Record<string, string> = { thoughts: "notes", topics: "notes", thought: "note" };
 
 const main = h("main");
 const nav = h("nav", { class: "tabs" });
 document.getElementById("app")!.append(main, nav);
+// Swipe anywhere on the screen (not just on the content) to flick between sibling pages.
+swipePages(main, () => SIBLINGS[route().name]);
 
 function route() {
   const [path, query = ""] = location.hash.replace(/^#\/?/, "").split("?");
@@ -49,9 +58,12 @@ function render() {
     : name === "notes" ? notesView()
     : name === "collections" ? collectionsView()
     : name === "todo" ? todoView()
+    : name === "daily" ? dailyView()
     : name === "calendar" ? calendarView(params)
     : name === "settings" ? settingsView()
     : talkView(params);
+  const slide = takeSlide();
+  if (slide) view.classList.add(`slide-from-${slide}`);
   main.replaceChildren(view);
 
   const section = SECTION_OF[name] ?? name;

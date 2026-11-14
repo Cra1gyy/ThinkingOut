@@ -6,7 +6,7 @@ It's built for people who think by speaking rather than with an inner voice, and
 
 ## What it does
 
-The look takes its cues from Nothing OS: monochrome with one red accent, dot-matrix headings and icons (the free [Doto](https://fonts.google.com/specimen/Doto) font standing in for Nothing's own), Geist for reading, and small uppercase mono labels. It follows your phone's light or dark mode. Five tabs along the bottom: **Talk**, **Notes** (notes by topic, and collections), **To-do**, **Calendar** and **Settings**.
+The look takes its cues from Nothing OS: monochrome with one red accent, dot-matrix headings and icons (the free [Doto](https://fonts.google.com/specimen/Doto) font standing in for Nothing's own), Geist for reading, and small uppercase mono labels. It follows your phone's light or dark mode. Five tabs along the bottom: **Talk**, **Notes** (notes by topic, and collections), **To-do** (to-dos, and daily to-dos), **Calendar** and **Settings**. Where a tab has two pages, swipe left and right to flick between them.
 
 
 - **Talk**: tap the mic to start and stop, or **hold it while you talk and let go to save**. You can type too. Add **screenshots or photos** from your gallery or camera, or share them in from any app. If you pick a topic first, its prompts show on screen.
@@ -20,7 +20,7 @@ The look takes its cues from Nothing OS: monochrome with one red accent, dot-mat
   - to-dos, which go **straight onto your to-do list**. Dates you mention ("Friday", "next week") are worked out, and dated to-dos go on your calendar.
 - **Notes**: every note, grouped under its topic, with image thumbnails. You can edit anything Claude wrote and share a note as Markdown, plus your loops from the last two weeks. You can re-file a note under a different topic, or start a topic with key notes to prompt you.
 - **Collections**: folders you name yourself (film ideas, racing, general ideas…), under Notes → Collections. Add notes from a note's page, tick several at once from the collection, or pick a collection on the Talk screen to capture straight into it. A note can be in more than one collection.
-- **Daily to-dos**: a card at the top of the To-do tab for things you do every day. Tick them off; they untick themselves at midnight, ready for the next day, and each shows how many days in a row you've kept it up. Tap one to edit or delete it. (They stay in the app and aren't sent to Google Calendar.)
+- **Daily to-dos**: the second page of the To-do tab (tap **Daily** at the top, or swipe left) for things you do every day. Tick them off; they untick themselves at midnight, ready for the next day, and each shows how many days in a row you've kept it up. Tap one to edit or delete it. (They stay in the app and aren't sent to Google Calendar.)
 - **To-do**: its own tab, with overdue / today / later counts at the top, a quick-add bar (tap the date, time and colour chips to set them) and everything sorted into overdue, today, upcoming and anytime. Give a to-do a date and it goes on your calendar (and Google Calendar); clear the date and it comes off again. Tap a to-do's dot to give it a colour; the colour shows on the calendar and on the event in Google Calendar (they're Google's own event colours).
 - **Calendar**: a month view and a "next 7 days" agenda showing your to-dos (in their colours), your Google events (in their Google colours) and the days you made notes. Settings → Calendar colours changes the default to-do, "all done" and notes colours.
 

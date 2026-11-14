@@ -4,6 +4,7 @@
 import { swatches, todoColor } from "../colors";
 import { h, toast } from "../dom";
 import { icon } from "../icons";
+import { todoTabs } from "./todo";
 import { addDaily, data, doneToday, redraw, removeDaily, streak, toggleDaily, updateDaily, type Daily } from "../store";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -157,5 +158,16 @@ export function dailyCard() {
     all ? h("p", { class: "daily-done-msg" }, "All done for today") : null,
     list.length ? h("ul", { class: "items" }, list.map(dailyRow)) : null,
     add,
+  );
+}
+
+// To-do → Daily: the daily to-dos on a page of their own.
+export function dailyView(): HTMLElement {
+  return h(
+    "div",
+    { class: "view todo" },
+    todoTabs("daily"),
+    dailyCard(),
+    h("p", { class: "swipe-hint" }, "Swipe to switch between To-do and Daily"),
   );
 }

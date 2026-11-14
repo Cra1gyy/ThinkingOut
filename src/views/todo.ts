@@ -1,10 +1,10 @@
 import { swatches, todoColor } from "../colors";
-import { h, toast } from "../dom";
+import { h, slideTo, toast } from "../dom";
 import { addDays, prettyDate, todayIso } from "../dates";
 import { googleStatus, sync } from "../google";
 import { icon } from "../icons";
-import { dailyCard } from "./daily";
-import { addItem, data, noteTitle, redraw, removeItem, sessionById, updateItem, type CalendarItem } from "../store";
+
+import { addItem, data, doneToday, noteTitle, redraw, removeItem, sessionById, updateItem, type CalendarItem } from "../store";
 
 const byWhen = (a: CalendarItem, b: CalendarItem) =>
   (a.date ?? "9999").localeCompare(b.date ?? "9999") || (a.time ?? "99").localeCompare(b.time ?? "99");
@@ -250,6 +250,29 @@ export function syncBar() {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
+// The To-do tab has two pages, flicked between with this switch or a swipe:
+// all your to-dos, and the daily ones.
+export function todoTabs(on: "todo" | "daily") {
+  const open = data.items.filter((i) => !i.done).length;
+  const daily = data.dailies;
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  return h(
+    "header",
+    { class: "page-head" },
+    h("h1", null, "To-do"),
+    h(
+      "div",
+      { class: "seg" },
+      h("a", { class: on === "todo" ? "on" : "", href: "#/todo", onclick: (e: Event) => (e.preventDefault(), on !== "todo" && slideTo("#/todo", "left")) }, `To-do ${open}`),
+      h(
+        "a",
+        { class: on === "daily" ? "on" : "", href: "#/daily", onclick: (e: Event) => (e.preventDefault(), on !== "daily" && slideTo("#/daily", "right")) },
+        `Daily ${daily.length ? `${pad2(daily.filter(doneToday).length)}/${pad2(daily.length)}` : ""}`.trim(),
+      ),
+    ),
+  );
+}
+
 export function todoView(): HTMLElement {
   const today = todayIso();
   const open = data.items.filter((i) => !i.done).sort(byWhen);
@@ -326,12 +349,11 @@ export function todoView(): HTMLElement {
 
   const stat = (n: number, label: string, cls = "") => h("div", { class: `stat ${cls}` }, h("span", { class: "stat-n" }, pad(n)), h("span", { class: "stat-l" }, label));
 
-  return h(
+  const view = h(
     "div",
     { class: "view todo" },
-    h("header", { class: "page-head" }, h("h1", null, "To-do")),
+    todoTabs("todo"),
     h("div", { class: "stats" }, stat(overdue.length, "Overdue", overdue.length ? "late" : ""), stat(dueToday.length, "Today"), stat(upcoming.length + anytime.length, "Later")),
-    dailyCard(),
     quickAdd,
     syncBar(),
     !open.length && !done.length ? h("p", { class: "empty" }, "Nothing to do yet. To-dos from your notes land here automatically.") : null,
@@ -343,4 +365,5 @@ export function todoView(): HTMLElement {
       ? h("details", { class: "todo-group done-group" }, h("summary", null, "Done", h("span", { class: "count" }, pad(done.length))), h("ul", { class: "items" }, done.map((i) => todoRow(i, true))))
       : null,
   );
+  return view;
 }

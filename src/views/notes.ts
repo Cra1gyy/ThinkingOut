@@ -1,6 +1,6 @@
 import { isAnalysing, startAnalysis } from "../ai";
 import { imageUrl, removeImages, thumb } from "../images";
-import { go, h, toast } from "../dom";
+import { go, h, slideTo, toast } from "../dom";
 import { localDayOf, prettyDate, prettyDateTime } from "../dates";
 import { data, noteTitle, save, sessionById, topicById, uid, type Session, type Topic } from "../store";
 import { analysisCard } from "./analysis";
@@ -15,8 +15,12 @@ export function notesTabs(on: "notes" | "collections") {
     h(
       "div",
       { class: "seg" },
-      h("a", { class: on === "notes" ? "on" : "", href: "#/notes" }, `Notes ${data.sessions.length}`),
-      h("a", { class: on === "collections" ? "on" : "", href: "#/collections" }, `Collections ${data.collections.length}`),
+      h("a", { class: on === "notes" ? "on" : "", href: "#/notes", onclick: (e: Event) => (e.preventDefault(), on !== "notes" && slideTo("#/notes", "left")) }, `Notes ${data.sessions.length}`),
+      h(
+        "a",
+        { class: on === "collections" ? "on" : "", href: "#/collections", onclick: (e: Event) => (e.preventDefault(), on !== "collections" && slideTo("#/collections", "right")) },
+        `Collections ${data.collections.length}`,
+      ),
     ),
   );
 }
