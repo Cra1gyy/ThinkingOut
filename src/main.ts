@@ -1,6 +1,7 @@
 import "./style.css";
 import { applyMarkerColors } from "./colors";
 import { applyTheme } from "./theme";
+import { todayIso } from "./dates";
 import { h } from "./dom";
 import { icon, type IconName } from "./icons";
 import { startLiveSync, sync, syncSoon } from "./google";
@@ -10,6 +11,7 @@ import { settingsView } from "./views/settings";
 import { talkView } from "./views/talk";
 import { collectionView, collectionsView } from "./views/collections";
 import { noteView, notesView } from "./views/notes";
+import { resetDailyEditor } from "./views/daily";
 import { resetEditor, todoView } from "./views/todo";
 import { topicView } from "./views/topics";
 
@@ -68,6 +70,7 @@ function render() {
 let lastHash = "";
 window.addEventListener("hashchange", () => {
   resetEditor();
+  resetDailyEditor();
   render();
   if (location.hash !== lastHash) window.scrollTo(0, 0);
   lastHash = location.hash;
@@ -85,6 +88,18 @@ render();
 const backgroundSync = () => sync(false).catch(() => {});
 backgroundSync();
 startLiveSync();
+
+// When a new day starts, redraw so daily to-dos show unticked again: at
+// midnight if the app is open, or on coming back to it on a later day.
+let shownDay = todayIso();
+const newDayCheck = () => {
+  if (todayIso() !== shownDay) {
+    shownDay = todayIso();
+    if (route().name !== "talk") render();
+  }
+};
+setInterval(newDayCheck, 30_000);
+document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && newDayCheck());
 document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && backgroundSync());
 
 if ("serviceWorker" in navigator && import.meta.env.PROD) {

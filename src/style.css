@@ -509,3 +509,23 @@ a.topic-title::after { content: " ›"; color: var(--faint); font-family: var(--
 .edit-source { font: 500 0.66rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 .edit-actions { display: flex; gap: 6px; align-items: center; }
 .edit-actions .danger { margin-right: auto; padding-left: 4px; }
+
+/* Daily to-dos */
+.daily-card { padding-bottom: 12px; }
+.daily-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.daily-head h3 { margin-bottom: 4px; }
+.daily-reset { color: var(--faint); letter-spacing: 0.08em; }
+.daily-count { font: 800 1.9rem/1 var(--font-dot); }
+.daily-card.all-done .daily-count { color: var(--accent); }
+.daily-dots { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 4px; }
+.daily-dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line); }
+.daily-dots i.on { background: var(--text); border-color: var(--text); }
+.daily-card.all-done .daily-dots i.on { background: var(--accent); border-color: var(--accent); }
+.daily-done-msg { margin: 4px 0 0; font: 500 0.66rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.14em; color: var(--accent); }
+.streak { color: var(--text); }
+.daily-add { display: flex; gap: 8px; align-items: center; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.daily-add:first-child, .daily-card > .daily-head + .daily-add { border-top: none; padding-top: 4px; }
+.daily-input { background: transparent; border: none; padding: 8px 4px; }
+.daily-input:focus { border-color: transparent; }
+.daily-go { width: 36px; height: 36px; padding: 0; justify-content: center; flex: none; }
+.daily-go .icon { width: 13px; height: 13px; fill: currentColor; }

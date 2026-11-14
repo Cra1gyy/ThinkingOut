@@ -3,6 +3,7 @@ import { h, toast } from "../dom";
 import { addDays, prettyDate, todayIso } from "../dates";
 import { googleStatus, sync } from "../google";
 import { icon } from "../icons";
+import { dailyCard } from "./daily";
 import { addItem, data, noteTitle, redraw, removeItem, sessionById, updateItem, type CalendarItem } from "../store";
 
 const byWhen = (a: CalendarItem, b: CalendarItem) =>
@@ -330,6 +331,7 @@ export function todoView(): HTMLElement {
     { class: "view todo" },
     h("header", { class: "page-head" }, h("h1", null, "To-do")),
     h("div", { class: "stats" }, stat(overdue.length, "Overdue", overdue.length ? "late" : ""), stat(dueToday.length, "Today"), stat(upcoming.length + anytime.length, "Later")),
+    dailyCard(),
     quickAdd,
     syncBar(),
     !open.length && !done.length ? h("p", { class: "empty" }, "Nothing to do yet. To-dos from your notes land here automatically.") : null,

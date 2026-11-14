@@ -1,3 +1,4 @@
+import { addDays, todayIso } from "./dates";
 import { exportImages, importImages } from "./images";
 
 // All data lives in this browser's localStorage. Nothing leaves the device
@@ -30,6 +31,17 @@ export interface Session {
   addedActions: number[]; // indexes of actions already put on the calendar
   images?: string[]; // ids in images.ts (IndexedDB)
   collections?: string[]; // ids of the collections this note is in
+}
+
+// A daily to-do: tick it each day; it's unticked again when the next day starts.
+// Nothing needs resetting: "done today" just means today is in `doneOn`.
+export interface Daily {
+  id: string;
+  title: string;
+  details?: string | null;
+  color?: string | null; // colorId, see colors.ts
+  doneOn: string[]; // YYYY-MM-DD (local) days it was ticked, newest last
+  createdAt: string;
 }
 
 // A folder you name yourself and put notes into (a note can be in several).
@@ -94,6 +106,7 @@ interface Data {
   topics: Topic[];
   items: CalendarItem[];
   collections: Collection[];
+  dailies: Daily[];
   settings: Settings;
   google: GoogleSync;
 }
@@ -105,6 +118,7 @@ const empty = (): Data => ({
   topics: [],
   items: [],
   collections: [],
+  dailies: [],
   settings: { apiKey: "", model: "claude-opus-5-5" },
   google: { clientId: "", connected: false, lastSync: null, events: [], pendingDeletes: [] },
 });
@@ -157,6 +171,7 @@ export async function importJson(text: string) {
   data.sessions = incoming.sessions ?? [];
   data.topics = incoming.topics ?? [];
   data.collections = incoming.collections ?? [];
+  data.dailies = incoming.dailies ?? [];
   // Restored items are re-pushed as new events if Google is connected on this device.
   data.items = (incoming.items ?? []).map((i) => ({ ...i, googleId: null, dirty: true }));
   save();
@@ -219,6 +234,44 @@ export function applyAnalysis(session: Session, analysis: Analysis) {
 
 // A note's title is the topic it's filed under.
 export const noteTitle = (s: Session) => topicById(s.topicId)?.title ?? s.analysis?.title ?? "Not sorted yet";
+
+// ---- daily to-dos ---------------------------------------------------------
+
+export const doneToday = (d: Daily) => d.doneOn.includes(todayIso());
+
+export function addDaily(title: string, color: string | null = null) {
+  data.dailies.push({ id: uid(), title: title.trim(), color, doneOn: [], createdAt: new Date().toISOString() });
+  save();
+}
+
+export function updateDaily(d: Daily, changes: Partial<Daily>) {
+  Object.assign(d, changes);
+  save();
+}
+
+export function toggleDaily(d: Daily) {
+  const today = todayIso();
+  d.doneOn = doneToday(d) ? d.doneOn.filter((x) => x !== today) : [...d.doneOn, today].slice(-400);
+  save();
+}
+
+export function removeDaily(d: Daily) {
+  data.dailies = data.dailies.filter((x) => x.id !== d.id);
+  save();
+}
+
+// Days in a row it's been done, counting today if ticked, else up to yesterday
+// (so the streak doesn't look broken before you've had a chance to do it).
+export function streak(d: Daily) {
+  const done = new Set(d.doneOn);
+  let day = done.has(todayIso()) ? todayIso() : addDays(todayIso(), -1);
+  let n = 0;
+  while (done.has(day)) {
+    n++;
+    day = addDays(day, -1);
+  }
+  return n;
+}
 
 // ---- collections ----------------------------------------------------------
 
