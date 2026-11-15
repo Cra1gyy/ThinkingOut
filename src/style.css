@@ -543,3 +543,7 @@ main { min-height: 100vh; min-height: 100dvh; }
 /* Elements toggled with the hidden attribute stay hidden, whatever their display */
 [hidden] { display: none !important; }
 .sort-error { user-select: text; overflow-wrap: anywhere; }
+
+/* Settings → Your PC */
+.sync-toggle { text-transform: none; letter-spacing: normal; font: 500 0.95rem var(--font-body); color: var(--text); }
+.sync-toggle .check { --c: var(--text); }

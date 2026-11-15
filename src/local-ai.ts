@@ -124,7 +124,8 @@ const FIELD_GUIDE = Object.entries(AnalysisSchema.shape)
   .map(([key, field]) => `- ${key}: ${field.description ?? ""}`)
   .join("\n");
 
-const LOCAL_SYSTEM = `${SYSTEM}
+// Also used for sorting on your PC (pc-ai.ts), which runs similar open models.
+export const LOCAL_SYSTEM = `${SYSTEM}
 
 Reply with only a JSON object with these fields:
 ${FIELD_GUIDE}
@@ -159,7 +160,7 @@ function capStrings(s: JsonSchema, chars: number) {
   Object.entries(s.properties ?? {}).forEach(([key, p]) => (key === "date" || key === "time" ? null : capStrings(p, chars)));
 }
 
-const JSON_SCHEMA = (() => {
+export const JSON_SCHEMA = (() => {
   const { $schema: _ignored, ...schema } = z.toJSONSchema(AnalysisSchema) as Record<string, unknown> & JsonSchema;
   for (const [key, limit] of Object.entries(LIMITS)) {
     const field = schema.properties?.[key];
@@ -256,7 +257,7 @@ function dedupe<T>(items: T[], text: (t: T) => string): T[] {
 // time was actually mentioned.
 const MENTIONS_TIME = /\b\d{1,2}(:\d{2})?\s*(am|pm)\b|\b\d{1,2}:\d{2}\b|o'?clock|\bnoon\b|midday|midnight|half past|quarter (past|to)/i;
 
-function tidy(a: Analysis, transcript: string): Analysis {
+export function tidy(a: Analysis, transcript: string): Analysis {
   const same = (s: string) => s;
   const keepTimes = MENTIONS_TIME.test(transcript);
   return {
@@ -292,7 +293,7 @@ async function generate(content: string) {
 const modelWasLost = (err: unknown) => /not loaded|device (was |is )?lost|DeviceLost|disposed|unmapped before mapping/i.test(errorText(err));
 
 // Small models get weekdays wrong ("next Friday"), so give them a lookup table.
-function calendar() {
+export function calendar() {
   const today = todayIso();
   const days = Array.from({ length: 15 }, (_, i) => {
     const iso = addDays(today, i);

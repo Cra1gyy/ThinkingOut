@@ -5,6 +5,7 @@ import { imageBase64 } from "./images";
 import { applyAnalysis, data, engine, save, type Analysis, type Session } from "./store";
 import { AnalysisSchema, buildPrompt, SYSTEM } from "./prompt";
 import { analyseLocal } from "./local-ai";
+import { analysePc } from "./pc-ai";
 import { costOf, reserve, settle } from "./budget";
 
 const MAX_OUTPUT_TOKENS = 16000;
@@ -16,6 +17,8 @@ function client() {
 }
 
 export async function analyse(session: Session): Promise<Analysis> {
+  // A sort already waiting on your PC is collected from there, whatever the setting now.
+  if (session.pcJob || engine() === "pc") return analysePc(session);
   if (engine() === "local") return analyseLocal(session);
   const images = (await Promise.all((session.images ?? []).map(imageBase64))).filter((b): b is string => !!b);
 
@@ -102,4 +105,9 @@ export function startAnalysis(session: Session) {
       pending.delete(session.id);
       save();
     });
+}
+
+// Sorts that were waiting on your PC when the app was last closed: collect them.
+export function resumePcSorts() {
+  data.sessions.filter((s) => s.pcJob).forEach(startAnalysis);
 }

@@ -1,9 +1,11 @@
 import { markers, swatches } from "../colors";
 import { currentTheme, setTheme, type Theme } from "../theme";
 import { h, toast } from "../dom";
+import { checkServer } from "../pc-ai";
+import { resetSync, syncNow, syncState } from "../sync";
 import { disconnect, googleStatus, sync } from "../google";
 import { budget } from "../budget";
-import { data, engine, exportJson, importJson, save } from "../store";
+import { data, engine, exportJson, importJson, save, persist, redraw } from "../store";
 import { deleteModel, isDownloaded, loadModel, LOCAL_MODELS, localModel, onProgress, webGpuSupported } from "../local-ai";
 
 const MODELS = [
@@ -43,6 +45,7 @@ export function settingsView(): HTMLElement {
     h("h1", null, "Settings"),
     appearanceSection(),
     sortingSection(),
+    pcSection(),
     h(
       "section",
       { class: "block form" },
@@ -216,8 +219,9 @@ function colourSection() {
 // Who sorts your notes: the free on-phone model, or Claude.
 function sortingSection() {
   const now = engine();
-  const options: ["local" | "claude", string][] = [
-    ["local", "On this phone (free)"],
+  const options: ["local" | "claude" | "pc", string][] = [
+    ["local", "This phone"],
+    ["pc", "My PC"],
     ["claude", "Claude"],
   ];
   const picker = h(
@@ -240,6 +244,20 @@ function sortingSection() {
       ),
     ),
   );
+
+  if (now === "pc") {
+    return h(
+      "section",
+      { class: "block form" },
+      h("h3", null, "Sorting"),
+      picker,
+      h(
+        "p",
+        { class: "muted small" },
+        "Notes are sorted by the model in Ollama on your PC, through your own server (set it up under Your PC below). It's free and private. Sorts carry on on the PC even if you close the app, and the note fills in next time you open it.",
+      ),
+    );
+  }
 
   if (now === "claude") {
     return h(
@@ -365,5 +383,100 @@ function appearanceSection() {
       ),
     ),
     h("p", { class: "muted small" }, now === "system" ? "Following your phone's light or dark mode." : `Always ${now}, whatever your phone is set to.`),
+  );
+}
+
+// Your own server on your PC: sorting with Ollama, and syncing devices.
+function pcSection() {
+  const url = h("input", { type: "url", value: data.settings.serverUrl ?? "", placeholder: "https://your-pc.your-tailnet.ts.net", autocomplete: "off", inputmode: "url" });
+  const key = h("input", { type: "password", value: data.settings.serverToken ?? "", placeholder: "Server key", autocomplete: "off" });
+  const result = h("p", { class: "small" });
+  const syncLine = h("p", { class: "muted small" });
+
+  const keep = () => {
+    const changed = (data.settings.serverUrl ?? "") !== url.value.trim();
+    data.settings.serverUrl = url.value.trim() || undefined;
+    data.settings.serverToken = key.value.trim() || undefined;
+    if (changed) resetSync(); // a different server: send everything again
+    persist(); // no redraw: the result line below is still on screen
+  };
+
+  const test = h(
+    "button",
+    {
+      onclick: async () => {
+        keep();
+        test.disabled = true;
+        result.textContent = "Checking…";
+        try {
+          const h0 = await checkServer(true);
+          result.textContent = h0.ok
+            ? `Connected. Model: ${h0.model}${h0.vision ? " (can read images)" : " (can't read images)"}.`
+            : (h0.error ?? "The server is running but not ready.");
+        } catch (err) {
+          result.textContent = err instanceof Error ? err.message : String(err);
+        }
+        test.disabled = false;
+      },
+    },
+    "Save & test connection",
+  );
+
+  const showSync = () => {
+    syncLine.textContent = !data.settings.syncEnabled
+      ? "Off. Everything stays on this device only."
+      : syncState.error
+        ? `Last sync failed: ${syncState.error}`
+        : syncState.last
+          ? `On. Last synced ${syncState.last.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}.`
+          : "On. Syncs when the app opens, after changes, and every minute.";
+  };
+  showSync();
+
+  const toggle = h("input", {
+    type: "checkbox",
+    class: "check",
+    checked: !!data.settings.syncEnabled,
+    onchange: async () => {
+      keep();
+      data.settings.syncEnabled = toggle.checked;
+      persist();
+      if (toggle.checked) {
+        syncLine.textContent = "Syncing…";
+        await syncNow().catch(() => {});
+      }
+      redraw(); // shows the result, and the Sync now button
+    },
+  });
+  const now = h(
+    "button",
+    {
+      class: "small",
+      onclick: async () => {
+        now.disabled = true;
+        syncLine.textContent = "Syncing…";
+        await syncNow().catch(() => {});
+        if (!syncState.error) toast("Synced with your PC");
+        redraw();
+      },
+    },
+    "Sync now",
+  );
+
+  return h(
+    "section",
+    { class: "block form" },
+    h("h3", null, "Your PC"),
+    h(
+      "p",
+      { class: "muted small" },
+      "Run the ThinkingOut server on your PC to sort notes with Ollama and keep your devices in sync. The README has the setup steps. The server prints its address and key when it starts.",
+    ),
+    h("label", null, "Server address", url),
+    h("label", null, "Server key", key),
+    h("div", { class: "row" }, test),
+    result,
+    h("label", { class: "inline sync-toggle" }, toggle, "Keep this device in sync"),
+    h("div", { class: "row between" }, syncLine, data.settings.syncEnabled ? now : null),
   );
 }

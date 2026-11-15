@@ -32,6 +32,7 @@ export interface Session {
   images?: string[]; // ids in images.ts (IndexedDB)
   collections?: string[]; // ids of the collections this note is in
   sortError?: string; // why the last sort failed, shown on the note until a sort works
+  pcJob?: string; // a sort waiting on your PC; picked up again if the app was closed (pc-ai.ts)
 }
 
 // A daily to-do: tick it each day; it's unticked again when the next day starts.
@@ -100,8 +101,11 @@ export interface Settings {
   budget?: { limit: number; month: string; spent: number }; // US$, see budget.ts
   markers?: { todo?: string | null; done?: string | null; note?: string | null }; // calendar dot colours
   theme?: "system" | "light" | "dark"; // see theme.ts
-  engine?: "local" | "claude"; // who sorts notes; see local-ai.ts. Defaults to the free on-phone model
+  engine?: "local" | "claude" | "pc"; // who sorts notes: on-phone (local-ai.ts), Claude (ai.ts) or your PC (pc-ai.ts)
   localModel?: string; // WebLLM model id for the on-phone engine
+  serverUrl?: string; // your own server (server/server.mjs), for sorting on your PC and syncing
+  serverToken?: string; // that server's key
+  syncEnabled?: boolean; // keep this device in sync through that server (sync.ts)
 }
 
 export const engine = () => data.settings.engine ?? "local";
@@ -167,7 +171,7 @@ export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().to
 export async function exportJson(): Promise<string> {
   const { google: _google, ...rest } = data;
   const images = await exportImages(data.sessions.flatMap((s) => s.images ?? []));
-  return JSON.stringify({ ...rest, settings: { ...data.settings, apiKey: "" }, images }, null, 2);
+  return JSON.stringify({ ...rest, settings: { ...data.settings, apiKey: "", serverToken: undefined }, images }, null, 2);
 }
 
 export async function importJson(text: string) {

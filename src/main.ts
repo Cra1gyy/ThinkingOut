@@ -1,6 +1,8 @@
 import "./style.css";
 import { applyMarkerColors } from "./colors";
 import { applyTheme } from "./theme";
+import { startAutoSync, syncSoon as syncServerSoon } from "./sync";
+import { resumePcSorts } from "./ai";
 import { todayIso } from "./dates";
 import { h, swipePages, takeSlide } from "./dom";
 import { icon, type IconName } from "./icons";
@@ -91,6 +93,7 @@ window.addEventListener("hashchange", () => {
 onChange(() => {
   if (route().name !== "talk") render();
   syncSoon();
+  syncServerSoon();
 });
 render();
 
@@ -100,6 +103,8 @@ render();
 const backgroundSync = () => sync(false).catch(() => {});
 backgroundSync();
 startLiveSync();
+startAutoSync();
+resumePcSorts();
 
 // When a new day starts, redraw so daily to-dos show unticked again: at
 // midnight if the app is open, or on coming back to it on a later day.

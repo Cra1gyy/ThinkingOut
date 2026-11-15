@@ -1,6 +1,6 @@
 # ThinkingOut
 
-A personal app for thinking out loud. You talk, and it writes down what you say. Then Claude sorts it into clear bullet points: what you're thinking, what you decided, what's still open, what you keep going round in circles on, and one small next step. Anything you need to do goes straight onto the calendar.
+A personal app for thinking out loud. You talk, and it writes down what you say. Then an AI model (on your phone, on your own PC, or Claude) sorts it into clear bullet points: what you're thinking, what you decided, what's still open, what you keep going round in circles on, and one small next step. Anything you need to do goes straight onto the calendar.
 
 It's built for people who think by speaking rather than with an inner voice, and who want to stop looping through the same thoughts.
 
@@ -35,6 +35,7 @@ npm run build    # production build in dist/
 Then open **Settings → Sorting** in the app and choose who sorts your notes:
 
 - **On this phone (free)**, the default: tap **Download model** once (on Wi-Fi). After that an open model from Hugging Face sorts your notes on the phone itself, with no API key, no cost and nothing leaving the device.
+- **My PC**: a model in Ollama on your own computer sorts your notes, through the small ThinkingOut server. Free, private, and it can also keep your devices in sync. See [Your own server](#your-own-server-on-your-pc) below.
 - **Claude**: paste in a Claude API key from https://console.anthropic.com. The key stays in your browser's local storage and is only ever sent to Anthropic.
 
 ### Free on-phone sorting
@@ -45,6 +46,55 @@ The phone runs a small open model ([Qwen 3.5](https://huggingface.co/mlc-ai) thr
 - It needs WebGPU: recent Chrome on Android, or Safari on iOS 26 and later.
 - It isn't as sharp as Claude, can't read images (image-only notes need Claude), and a sort takes longer. Sorting still happens in the background.
 - Very long talks are too big for it. Split them up, or sort those with Claude.
+
+### Your own server (on your PC)
+
+`server/server.mjs` is a small server that runs on your PC. It does two things:
+
+- **Sorting with Ollama.** The app sends a note to it, and it's sorted by a model running in [Ollama](https://ollama.com) on the PC. Sorts are queued on the PC, so a sort still finishes if your phone closes the app; the note fills in next time the app is open. If the model can read images (a "vision" model), images are sent too.
+- **Sync.** Notes, to-dos, daily to-dos, topics, collections and images are kept on the PC, so every device you use sees the same things. When two devices change the same thing, the later change wins. Settings (API keys, Google sign-in, theme) stay per device.
+
+It needs nothing but [Node.js](https://nodejs.org) 18 or newer, and everything it stores is in `server/data/` on the PC.
+
+**1. Get a model into Ollama.** Any GGUF model on Hugging Face works:
+
+```bash
+ollama pull hf.co/Qwen/Qwen3-8B-GGUF:Q4_K_M   # a good all-rounder for a PC with ~8 GB+ of graphics memory
+```
+
+Or one from Ollama's own library, e.g. `ollama pull qwen2.5vl:7b` if you want it to read your screenshots too. Pick a smaller one if your PC struggles.
+
+**2. Start the server** (in the project folder):
+
+```bash
+npm run server
+```
+
+To choose the model (otherwise it uses the first one Ollama has), set `OLLAMA_MODEL` first:
+
+```bash
+# macOS / Linux
+OLLAMA_MODEL=hf.co/Qwen/Qwen3-8B-GGUF:Q4_K_M npm run server
+# Windows PowerShell
+$env:OLLAMA_MODEL="hf.co/Qwen/Qwen3-8B-GGUF:Q4_K_M"; npm run server
+```
+
+On first start it makes a **server key** and prints it (it's also saved in `server/data/token.txt`). Other settings: `PORT` (default 8787), `OLLAMA_URL` (default `http://127.0.0.1:11434`), `NUM_CTX` (how much text the model holds at once, default 16384), `ALLOWED_ORIGINS` (default `*`; set it to `https://cra1gyy.github.io` to only accept the app).
+
+**3. Give it a secure address your phone can reach.** The app is on an `https://` page, so the server needs an `https://` address too. The easiest private way is **[Tailscale](https://tailscale.com)** (free for personal use):
+
+1. Install Tailscale on the PC and on your phone, and sign in to the same account on both.
+2. In the Tailscale admin console, under **DNS**, turn on **MagicDNS** and **HTTPS Certificates**.
+3. On the PC, run `tailscale serve --bg 8787`. It prints an address like `https://your-pc.your-tailnet.ts.net`.
+
+Only your own devices (with Tailscale on) can reach that address. As an alternative, `cloudflared tunnel --url http://localhost:8787` gives a public `https://…trycloudflare.com` address with no account, but it changes every time you run it; the server key still protects it.
+
+**4. Connect the app.** On each device: **Settings → Your PC**, paste the address and the key, tap **Save & test connection** (it shows the model it found), then:
+
+- **Settings → Sorting → My PC** to sort notes on the PC.
+- Tick **Keep this device in sync** to sync. The first sync sends everything on that device; do it on each device and they all end up with everything.
+
+**Keeping it running.** The server and Ollama need to be running when you sort or sync (changes made while the PC is off are sent next time it's reachable). To start it with the PC: on Windows, a Task Scheduler task "At log on" running `node C:\path\to\ThinkingOut\server\server.mjs`; on macOS/Linux, a login item or a systemd user service doing the same.
 
 ### Keeping Claude costs capped
 

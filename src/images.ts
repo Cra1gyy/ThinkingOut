@@ -44,6 +44,11 @@ export async function addImage(file: Blob): Promise<string> {
   return id;
 }
 
+// Save an image under a known id (one synced from another device).
+export async function storeImage(id: string, blob: Blob) {
+  await tx("readwrite", (s) => s.put(blob, id));
+}
+
 export const getImage = (id: string) => tx<Blob | undefined>("readonly", (s) => s.get(id));
 
 export async function removeImages(ids: string[]) {
