@@ -7,6 +7,7 @@ import type { MLCEngineInterface } from "@mlc-ai/web-llm";
 import { z } from "zod";
 import { AnalysisSchema, buildPrompt, SYSTEM } from "./prompt";
 import { data, type Analysis, type Session } from "./store";
+import { addDays, parseIso, todayIso } from "./dates";
 
 export const LOCAL_MODELS: { id: string; label: string }[] = [
   { id: "Qwen3.5-2B-q4f16_1-MLC", label: "Qwen 3.5 2B: recommended (1.1 GB download)" },
@@ -16,9 +17,11 @@ export const LOCAL_MODELS: { id: string; label: string }[] = [
 
 export const localModel = () => data.settings.localModel || LOCAL_MODELS[0].id;
 
-// How much text the model can hold at once (prompt + reply), in tokens.
-const CONTEXT = 8192;
-const MAX_REPLY = 1800;
+// How much text the model can hold at once (prompt + reply), in tokens. This
+// is WebLLM's default: more needs more graphics memory, and phones run out
+// (the GPU drops the model and every request then fails with "not loaded").
+const CONTEXT = 4096;
+const MAX_REPLY = 1400;
 // Rough characters-per-token, to refuse prompts that won't fit before trying.
 const CHARS_PER_TOKEN = 3.5;
 
@@ -46,26 +49,37 @@ function emit(p: Progress | null) {
 
 let engine: Promise<MLCEngineInterface> | null = null;
 let loadedId: string | null = null;
+let worker: Worker | null = null;
+
+/** Drop the loaded model and its worker, freeing the graphics memory. The next loadModel() starts fresh. */
+async function resetEngine() {
+  const old = engine;
+  engine = null;
+  loadedId = null;
+  await (await old?.catch(() => null))?.unload().catch(() => {});
+  worker?.terminate();
+  worker = null;
+}
 
 /** Load the chosen model, downloading it first if it isn't on the device yet. */
 export function loadModel(id = localModel()): Promise<MLCEngineInterface> {
   if (engine && loadedId === id) return engine;
   const previous = engine;
   loadedId = id;
-  engine = (async () => {
+  const loading = (async () => {
     if (!webGpuSupported()) {
       throw new Error("This browser can't run the on-phone model (it needs WebGPU). Use Chrome, or switch to Claude in Settings.");
     }
     // Ask the browser not to clear the model when space runs low.
     navigator.storage?.persist?.().catch(() => {});
     emit({ progress: 0, text: "Starting…" });
-    const prev = await previous?.catch(() => null);
-    if (prev) {
-      await prev.reload(id, { context_window_size: CONTEXT });
-      return prev;
+    // One model at a time: a phone can't hold two in graphics memory.
+    if (previous) {
+      await (await previous.catch(() => null))?.unload().catch(() => {});
+      worker?.terminate();
     }
     const webllm = await import("@mlc-ai/web-llm");
-    const worker = new Worker(new URL("./llm-worker.ts", import.meta.url), { type: "module" });
+    worker = new Worker(new URL("./llm-worker.ts", import.meta.url), { type: "module" });
     return webllm.CreateWebWorkerMLCEngine(
       worker,
       id,
@@ -73,15 +87,18 @@ export function loadModel(id = localModel()): Promise<MLCEngineInterface> {
       { context_window_size: CONTEXT },
     );
   })();
-  engine.then(
+  engine = loading;
+  loading.then(
     () => emit(null),
     () => {
       emit(null);
-      engine = null;
-      loadedId = null;
+      if (engine === loading) {
+        engine = null;
+        loadedId = null;
+      }
     },
   );
-  return engine;
+  return loading;
 }
 
 export async function isDownloaded(id = localModel()): Promise<boolean> {
@@ -90,11 +107,7 @@ export async function isDownloaded(id = localModel()): Promise<boolean> {
 }
 
 export async function deleteModel(id = localModel()) {
-  if (loadedId === id) {
-    (await engine?.catch(() => null))?.unload();
-    engine = null;
-    loadedId = null;
-  }
+  if (loadedId === id) await resetEngine();
   const webllm = await import("@mlc-ai/web-llm");
   await webllm.deleteModelAllInfoInCache(id);
 }
@@ -119,16 +132,18 @@ Work out dates carefully from today's date: "tomorrow" is the day after today, "
 // Small models can get stuck repeating a bullet forever. Capping how many
 // bullets each list can have, and how long each bit of text can be, is enforced
 // while the reply is generated, so it always finishes.
+// Together these keep even a maxed-out reply (about 4,500 characters with the
+// JSON around it) under MAX_REPLY tokens.
 const LIMITS: Record<string, { items?: number; chars: number }> = {
   title: { chars: 60 },
-  summary: { chars: 600 },
-  keyThoughts: { items: 8, chars: 220 },
-  themes: { items: 4, chars: 40 },
-  decisions: { items: 5, chars: 220 },
-  openQuestions: { items: 5, chars: 220 },
-  actions: { items: 6, chars: 160 },
-  loops: { items: 4, chars: 220 },
-  nextStep: { chars: 220 },
+  summary: { chars: 400 },
+  keyThoughts: { items: 6, chars: 150 },
+  themes: { items: 4, chars: 30 },
+  decisions: { items: 4, chars: 150 },
+  openQuestions: { items: 4, chars: 150 },
+  actions: { items: 5, chars: 120 },
+  loops: { items: 3, chars: 150 },
+  nextStep: { chars: 150 },
 };
 
 type JsonSchema = { type?: string | string[]; properties?: Record<string, JsonSchema>; items?: JsonSchema; maxItems?: number; maxLength?: number; anyOf?: JsonSchema[] };
@@ -165,7 +180,7 @@ async function sortOne(session: Session): Promise<Analysis> {
   if (!session.transcript.trim() && imageCount) {
     throw new Error("The on-phone model can't read images yet. Switch to Claude in Settings to sort image-only notes.");
   }
-  let content = buildPrompt(session, true);
+  let content = `${buildPrompt(session, true)}\n\n${calendar()}`;
   if (imageCount) {
     content += `\n\n(They also attached ${imageCount} image${imageCount > 1 ? "s" : ""} you can't see. Don't guess what's in them.)`;
   }
@@ -178,27 +193,31 @@ async function sortOne(session: Session): Promise<Analysis> {
     throw new Error("Download the on-phone model first: Settings → Sorting.");
   }
 
-  let text: string;
-  let finish: string | null | undefined;
+  // If the phone's GPU dropped the model (it runs out of memory, or the app
+  // was in the background), load it again and have one more go.
+  let result: { text: string; finish: string | null | undefined };
   try {
-    const ai = await loadModel();
-    const reply = await ai.chat.completions.create({
-      messages: [
-        { role: "system", content: LOCAL_SYSTEM },
-        { role: "user", content },
-      ],
-      response_format: { type: "json_object", schema: JSON_SCHEMA },
-      max_tokens: MAX_REPLY,
-      temperature: 0.3,
-      extra_body: { enable_thinking: false },
-    });
-    await ai.resetChat();
-    text = reply.choices[0]?.message.content ?? "";
-    finish = reply.choices[0]?.finish_reason;
+    result = await generate(content);
   } catch (err) {
-    console.error("On-phone model error:", err);
-    throw new Error(`The on-phone model stopped with an error: ${errorText(err)}`);
+    if (!modelWasLost(err)) {
+      console.error("On-phone model error:", err);
+      throw new Error(`The on-phone model stopped with an error: ${errorText(err)}`);
+    }
+    console.warn("On-phone model was unloaded; loading it again and retrying:", err);
+    await resetEngine();
+    try {
+      result = await generate(content);
+    } catch (again) {
+      console.error("On-phone model error after reloading:", again);
+      await resetEngine();
+      throw new Error(
+        modelWasLost(again)
+          ? "Your phone ran out of graphics memory running the on-phone model. Close other apps and try again, pick the smaller 0.8B model in Settings → Sorting, or sort with Claude."
+          : `The on-phone model stopped with an error: ${errorText(again)}`,
+      );
+    }
   }
+  const { text, finish } = result;
 
   if (finish === "length") {
     console.warn("On-phone model hit its reply limit:", text);
@@ -245,6 +264,36 @@ function tidy(a: Analysis, transcript: string): Analysis {
   };
 }
 
+async function generate(content: string) {
+  const ai = await loadModel();
+  const reply = await ai.chat.completions.create({
+    messages: [
+      { role: "system", content: LOCAL_SYSTEM },
+      { role: "user", content },
+    ],
+    response_format: { type: "json_object", schema: JSON_SCHEMA },
+    max_tokens: MAX_REPLY,
+    temperature: 0.3,
+    extra_body: { enable_thinking: false },
+  });
+  await ai.resetChat();
+  return { text: reply.choices[0]?.message.content ?? "", finish: reply.choices[0]?.finish_reason };
+}
+
+// WebLLM's ways of saying the model is no longer on the GPU.
+const modelWasLost = (err: unknown) => /not loaded|device (was )?lost|DeviceLost|disposed/i.test(errorText(err));
+
+// Small models get weekdays wrong ("next Friday"), so give them a lookup table.
+function calendar() {
+  const today = todayIso();
+  const days = Array.from({ length: 15 }, (_, i) => {
+    const iso = addDays(today, i);
+    const name = parseIso(iso).toLocaleDateString("en-GB", { weekday: "long" });
+    return `- ${name} ${iso}${i === 0 ? " (today)" : i === 1 ? " (tomorrow)" : ""}`;
+  });
+  return `Dates for the next two weeks, to look up any day they mention:\n${days.join("\n")}`;
+}
+
 const snippet = (text: string) => JSON.stringify(text.length > 160 ? `${text.slice(0, 80)} … ${text.slice(-80)}` : text || "nothing");
 
 function errorText(err: unknown): string {
@@ -256,3 +305,4 @@ function errorText(err: unknown): string {
     return String(err);
   }
 }
+
