@@ -31,6 +31,7 @@ export interface Session {
   addedActions: number[]; // indexes of actions already put on the calendar
   images?: string[]; // ids in images.ts (IndexedDB)
   collections?: string[]; // ids of the collections this note is in
+  sortError?: string; // why the last sort failed, shown on the note until a sort works
 }
 
 // A daily to-do: tick it each day; it's unticked again when the next day starts.

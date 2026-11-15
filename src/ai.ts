@@ -63,7 +63,18 @@ export function describeError(err: unknown): string {
   if (err instanceof Anthropic.RateLimitError) return "Rate limited. Wait a moment and try again.";
   if (err instanceof Anthropic.APIConnectionError) return "Couldn't reach Claude. Check your connection.";
   if (err instanceof Anthropic.APIError) return `Claude API error: ${err.message}`;
-  return err instanceof Error ? err.message : String(err);
+  if (err instanceof Error) return err.message;
+  // The on-phone model's worker can reject with plain objects or strings.
+  if (err && typeof err === "object") {
+    const msg = (err as { message?: unknown }).message;
+    if (typeof msg === "string") return msg;
+    try {
+      return JSON.stringify(err);
+    } catch {
+      /* fall through */
+    }
+  }
+  return String(err);
 }
 
 // Sorting runs in the background, like Essential Space's "analyzing" state:
@@ -78,9 +89,15 @@ export function startAnalysis(session: Session) {
   save();
   analyse(session)
     .then((a) => {
+      delete session.sortError;
       if (data.sessions.includes(session)) applyAnalysis(session, a); // skip if deleted meanwhile
     })
-    .catch((err) => toast(describeError(err)))
+    .catch((err) => {
+      // Keep the reason on the note too: a toast is gone in a couple of seconds.
+      session.sortError = describeError(err);
+      console.error("Sorting failed:", err);
+      toast(session.sortError);
+    })
     .finally(() => {
       pending.delete(session.id);
       save();

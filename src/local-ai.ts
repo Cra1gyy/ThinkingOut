@@ -178,31 +178,38 @@ async function sortOne(session: Session): Promise<Analysis> {
     throw new Error("Download the on-phone model first: Settings → Sorting.");
   }
 
-  const ai = await loadModel();
-  const reply = await ai.chat.completions.create({
-    messages: [
-      { role: "system", content: LOCAL_SYSTEM },
-      { role: "user", content },
-    ],
-    response_format: { type: "json_object", schema: JSON_SCHEMA },
-    max_tokens: MAX_REPLY,
-    temperature: 0.3,
-    extra_body: { enable_thinking: false },
-  });
-  await ai.resetChat();
+  let text: string;
+  let finish: string | null | undefined;
+  try {
+    const ai = await loadModel();
+    const reply = await ai.chat.completions.create({
+      messages: [
+        { role: "system", content: LOCAL_SYSTEM },
+        { role: "user", content },
+      ],
+      response_format: { type: "json_object", schema: JSON_SCHEMA },
+      max_tokens: MAX_REPLY,
+      temperature: 0.3,
+      extra_body: { enable_thinking: false },
+    });
+    await ai.resetChat();
+    text = reply.choices[0]?.message.content ?? "";
+    finish = reply.choices[0]?.finish_reason;
+  } catch (err) {
+    console.error("On-phone model error:", err);
+    throw new Error(`The on-phone model stopped with an error: ${errorText(err)}`);
+  }
 
-  const choice = reply.choices[0];
-  const text = choice?.message.content ?? "";
-  if (choice?.finish_reason === "length") {
+  if (finish === "length") {
     console.warn("On-phone model hit its reply limit:", text);
-    throw new Error("The on-phone model ran out of room for this note. Try Re-sort, or sort it with Claude.");
+    throw new Error(`The on-phone model ran out of room for this note. Try Re-sort, or sort it with Claude. (It wrote: ${snippet(text)})`);
   }
   try {
     // Qwen may put an empty <think></think> block before the JSON.
     return tidy(AnalysisSchema.parse(JSON.parse(text.slice(text.indexOf("{")))), session.transcript);
   } catch {
     console.warn("On-phone model gave a reply that didn't fit:", text);
-    throw new Error("The on-phone model's reply didn't come out right. Try Re-sort.");
+    throw new Error(`The on-phone model's reply didn't come out right. Try Re-sort. (It wrote: ${snippet(text)})`);
   }
 }
 
@@ -236,4 +243,16 @@ function tidy(a: Analysis, transcript: string): Analysis {
     openQuestions: dedupe(a.openQuestions, same),
     loops: dedupe(a.loops, same),
   };
+}
+
+const snippet = (text: string) => JSON.stringify(text.length > 160 ? `${text.slice(0, 80)} … ${text.slice(-80)}` : text || "nothing");
+
+function errorText(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object" && typeof (err as { message?: unknown }).message === "string") return (err as { message: string }).message;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
 }

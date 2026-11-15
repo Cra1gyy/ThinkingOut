@@ -195,6 +195,7 @@ export function noteView(id: string): HTMLElement {
         )
       : null,
     collectionChips(s),
+    !busy && s.sortError ? h("p", { class: "hint sort-error" }, h("strong", null, "Couldn't sort this: "), s.sortError) : null,
     busy
       ? h("div", { class: "block analysing" }, h("span", { class: "spinner" }), "Analyzing… you can leave this page; the note fills in when it's done.")
       : editing.has(s.id)
