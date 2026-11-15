@@ -11,8 +11,12 @@ import { addDays, parseIso, todayIso } from "./dates";
 
 export const LOCAL_MODELS: { id: string; label: string }[] = [
   { id: "Qwen3.5-2B-q4f16_1-MLC", label: "Qwen 3.5 2B: recommended (1.1 GB download)" },
+  // "Compatibility" versions: the same models doing their GPU maths in 32-bit.
+  // The 16-bit maths crashes the GPU on some Android phones ("device is lost").
+  { id: "Qwen3.5-2B-q4f32_1-MLC", label: "Qwen 3.5 2B, compatibility: use if sorting crashes (1.1 GB)" },
   { id: "Qwen3.5-4B-q4f16_1-MLC", label: "Qwen 3.5 4B: sharper, slower, needs a newer phone (2.4 GB)" },
   { id: "Qwen3.5-0.8B-q4f16_1-MLC", label: "Qwen 3.5 0.8B: fastest, least accurate (0.4 GB)" },
+  { id: "Qwen3.5-0.8B-q4f32_1-MLC", label: "Qwen 3.5 0.8B, compatibility: use if sorting crashes (0.4 GB)" },
 ];
 
 export const localModel = () => data.settings.localModel || LOCAL_MODELS[0].id;
@@ -212,7 +216,9 @@ async function sortOne(session: Session): Promise<Analysis> {
       await resetEngine();
       throw new Error(
         modelWasLost(again)
-          ? "Your phone ran out of graphics memory running the on-phone model. Close other apps and try again, pick the smaller 0.8B model in Settings → Sorting, or sort with Claude."
+          ? localModel().includes("q4f16")
+            ? "Your phone's graphics chip crashed running the on-phone model. Pick a \"compatibility\" model in Settings → Sorting (it needs downloading once), or sort with Claude."
+            : "Your phone's graphics chip crashed running the on-phone model, even in compatibility mode. Close other apps and try again, try the 0.8B compatibility model, or sort with Claude."
           : `The on-phone model stopped with an error: ${errorText(again)}`,
       );
     }
@@ -281,7 +287,9 @@ async function generate(content: string) {
 }
 
 // WebLLM's ways of saying the model is no longer on the GPU.
-const modelWasLost = (err: unknown) => /not loaded|device (was )?lost|DeviceLost|disposed/i.test(errorText(err));
+// ("Device is lost" and "unmapped before mapping was resolved" are what a
+// phone's GPU crash looks like from inside a request.)
+const modelWasLost = (err: unknown) => /not loaded|device (was |is )?lost|DeviceLost|disposed|unmapped before mapping/i.test(errorText(err));
 
 // Small models get weekdays wrong ("next Friday"), so give them a lookup table.
 function calendar() {
