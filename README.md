@@ -32,7 +32,19 @@ npm run dev      # local dev server
 npm run build    # production build in dist/
 ```
 
-Then open **Settings** in the app and paste in a Claude API key from https://console.anthropic.com. The key stays in your browser's local storage and is only ever sent to Anthropic.
+Then open **Settings → Sorting** in the app and choose who sorts your notes:
+
+- **On this phone (free)**, the default: tap **Download model** once (on Wi-Fi). After that an open model from Hugging Face sorts your notes on the phone itself, with no API key, no cost and nothing leaving the device.
+- **Claude**: paste in a Claude API key from https://console.anthropic.com. The key stays in your browser's local storage and is only ever sent to Anthropic.
+
+### Free on-phone sorting
+
+The phone runs a small open model ([Qwen 3.5](https://huggingface.co/mlc-ai) through [WebLLM](https://github.com/mlc-ai/web-llm)) on its GPU, in a background worker. Its reply is forced into exactly the same structure Claude returns, so notes look the same either way.
+
+- Models: **Qwen 3.5 2B** (default, 1.1 GB), **4B** (sharper, 2.4 GB, newer phones) and **0.8B** (fastest, 0.4 GB). The download happens once and is kept on the device. If it's interrupted, it picks up where it left off.
+- It needs WebGPU: recent Chrome on Android, or Safari on iOS 26 and later.
+- It isn't as sharp as Claude, can't read images (image-only notes need Claude), and a sort takes longer. Sorting still happens in the background.
+- Very long talks are too big for it. Split them up, or sort those with Claude.
 
 ### Keeping Claude costs capped
 
@@ -73,4 +85,4 @@ Some browsers need you to tap the mic once before they'll listen.
 
 - Voice uses the browser's built-in speech recognition (Chrome, Edge, and Safari on iOS/macOS). If that isn't available, type or use your keyboard's dictation mic.
 - Everything is stored on the device. Use **Settings → Download backup** now and then. Restore from Settings to move to another device.
-- The default model is Claude Opus 5.5. You can switch to Sonnet 5.5 or Haiku 5.5 in Settings to spend less.
+- Sorting is done on the phone by default, for free. If you switch to Claude, the default model is Opus 5.5, and you can pick Sonnet 5.5 or Haiku 5.5 in Settings to spend less.

@@ -3,7 +3,7 @@ import { go, h, toast } from "../dom";
 import { icon } from "../icons";
 import { addImage, removeImages, takeSharedInbox, thumb } from "../images";
 import { listen, speechSupported, type Listener } from "../speech";
-import { collectionById, data, save, topicById, uid, type Session } from "../store";
+import { collectionById, data, engine, save, topicById, uid, type Session } from "../store";
 import { newCollection } from "./collections";
 
 // Kept at module level so a capture survives navigating away and back.
@@ -288,7 +288,7 @@ export function talkView(params: URLSearchParams): HTMLElement {
         "Clear",
       ),
     ),
-    !data.settings.apiKey
+    engine() === "claude" && !data.settings.apiKey
       ? h("p", { class: "hint" }, "Add your Claude API key in ", h("a", { href: "#/settings" }, "Settings"), " so it can sort your thoughts.")
       : null,
   );

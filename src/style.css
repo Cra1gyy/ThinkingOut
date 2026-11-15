@@ -539,3 +539,6 @@ a.topic-title::after { content: " ›"; color: var(--faint); font-family: var(--
 @media (prefers-reduced-motion: reduce) { .slide-from-right, .slide-from-left { animation: none; } }
 /* Fill the screen so a swipe on empty space below short lists still counts. */
 main { min-height: 100vh; min-height: 100dvh; }
+
+/* Elements toggled with the hidden attribute stay hidden, whatever their display */
+[hidden] { display: none !important; }

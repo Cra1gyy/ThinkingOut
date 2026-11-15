@@ -3,7 +3,8 @@ import { currentTheme, setTheme, type Theme } from "../theme";
 import { h, toast } from "../dom";
 import { disconnect, googleStatus, sync } from "../google";
 import { budget } from "../budget";
-import { data, exportJson, importJson, save } from "../store";
+import { data, engine, exportJson, importJson, save } from "../store";
+import { deleteModel, isDownloaded, loadModel, LOCAL_MODELS, localModel, onProgress, webGpuSupported } from "../local-ai";
 
 const MODELS = [
   ["claude-opus-5-5", "Opus 5.5: best, about 2–6¢ a sort"],
@@ -41,10 +42,11 @@ export function settingsView(): HTMLElement {
     { class: "view" },
     h("h1", null, "Settings"),
     appearanceSection(),
+    sortingSection(),
     h(
       "section",
       { class: "block form" },
-      h("h3", null, "Claude"),
+      h("h3", null, engine() === "claude" ? "Claude" : "Claude (not in use)"),
       h("label", null, "API key", key),
       h("label", null, "Model", model),
       h("label", null, "Monthly spending limit (US$)", limit),
@@ -209,6 +211,134 @@ function colourSection() {
     h("label", null, "Days where everything's done", swatches(m.done, set("done"))),
     h("label", null, "Days you made notes", swatches(m.note, set("note"))),
   );
+}
+
+// Who sorts your notes: the free on-phone model, or Claude.
+function sortingSection() {
+  const now = engine();
+  const options: ["local" | "claude", string][] = [
+    ["local", "On this phone (free)"],
+    ["claude", "Claude"],
+  ];
+  const picker = h(
+    "div",
+    { class: "seg seg-wide", role: "radiogroup", "aria-label": "Sort notes with" },
+    options.map(([value, label]) =>
+      h(
+        "button",
+        {
+          type: "button",
+          role: "radio",
+          "aria-checked": String(now === value),
+          class: now === value ? "on" : "",
+          onclick: () => {
+            data.settings.engine = value;
+            save();
+          },
+        },
+        label,
+      ),
+    ),
+  );
+
+  if (now === "claude") {
+    return h(
+      "section",
+      { class: "block form" },
+      h("h3", null, "Sorting"),
+      picker,
+      h("p", { class: "muted small" }, "Notes are sorted by Claude, using your API key below. Each sort costs a little."),
+    );
+  }
+
+  if (!webGpuSupported()) {
+    return h(
+      "section",
+      { class: "block form" },
+      h("h3", null, "Sorting"),
+      picker,
+      h("p", { class: "hint" }, "This browser can't run the on-phone model: it needs WebGPU. Open the app in Chrome, or switch to Claude."),
+    );
+  }
+
+  const model = h(
+    "select",
+    {
+      onchange: () => {
+        data.settings.localModel = model.value;
+        save();
+      },
+    },
+    LOCAL_MODELS.map((m) => h("option", { value: m.id, selected: m.id === localModel() }, m.label)),
+  );
+  const status = h("p", { class: "small" }, "Checking…");
+  const bar = h("div", null);
+  const meter = h("div", { class: "meter", hidden: true }, bar);
+  const download = h("button", { class: "primary", hidden: true }, "Download model");
+  const remove = h("button", { class: "ghost danger", hidden: true }, "Delete from phone");
+
+  const showReady = (ready: boolean) => {
+    status.textContent = ready
+      ? "Downloaded. Notes are sorted on this phone, free, and nothing leaves it."
+      : "Not downloaded yet. It downloads once (use Wi-Fi) and then works offline.";
+    download.hidden = ready;
+    remove.hidden = !ready;
+  };
+  isDownloaded().then(showReady, () => showReady(false));
+
+  download.onclick = async () => {
+    download.disabled = true;
+    try {
+      await loadModel();
+      const kept = await isDownloaded();
+      showReady(kept);
+      toast(kept ? "On-phone model ready" : "Model loaded, but this browser didn't keep a copy. It'll need downloading again next time.");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : String(err));
+      download.disabled = false;
+    }
+  };
+  remove.onclick = async () => {
+    if (!confirm("Delete the on-phone model? You can download it again any time.")) return;
+    await deleteModel();
+    showReady(false);
+    toast("Deleted");
+  };
+
+  const section = h(
+    "section",
+    { class: "block form" },
+    h("h3", null, "Sorting"),
+    picker,
+    h(
+      "p",
+      { class: "muted small" },
+      "An open AI model from Hugging Face runs on your phone. It's free, private and works offline. It isn't as sharp as Claude, can't read images, and a sort takes longer, but it carries on in the background.",
+    ),
+    h("label", null, "Model", model),
+    status,
+    meter,
+    h("div", { class: "row" }, download, remove),
+  );
+
+  // Follow download/loading progress while this screen is showing.
+  queueMicrotask(() => {
+    const stop = onProgress((p) => {
+      if (!section.isConnected) return stop();
+      meter.hidden = !p;
+      if (p) {
+        bar.style.width = `${Math.round(p.progress * 100)}%`;
+        const pct = Math.round(p.progress * 100);
+        status.textContent = /fetch/i.test(p.text)
+          ? `Downloading… ${pct}%. Keep the app open; it picks up where it left off if it's interrupted.`
+          : /load|cache/i.test(p.text)
+            ? `Getting the model ready… ${pct}%`
+            : p.text;
+        download.disabled = true;
+      }
+    });
+  });
+  return section;
 }
 
 // Light, dark, or follow the phone.

@@ -99,7 +99,11 @@ export interface Settings {
   budget?: { limit: number; month: string; spent: number }; // US$, see budget.ts
   markers?: { todo?: string | null; done?: string | null; note?: string | null }; // calendar dot colours
   theme?: "system" | "light" | "dark"; // see theme.ts
+  engine?: "local" | "claude"; // who sorts notes; see local-ai.ts. Defaults to the free on-phone model
+  localModel?: string; // WebLLM model id for the on-phone engine
 }
+
+export const engine = () => data.settings.engine ?? "local";
 
 interface Data {
   sessions: Session[];
