@@ -93,7 +93,15 @@ Only your own devices (with Tailscale on) can reach that address. As an alternat
 - **Settings → Sorting → My PC** to sort notes on the PC.
 - Tick **Keep this device in sync** to sync. The first sync sends everything on that device; do it on each device and they all end up with everything.
 
-**Keeping it running.** The server and Ollama need to be running when you sort or sync (changes made while the PC is off are sent next time it's reachable). To start it with the PC: on Windows, a Task Scheduler task "At log on" running `node C:\path\to\ThinkingOut\server\server.mjs`; on macOS/Linux, a login item or a systemd user service doing the same.
+**Keeping it running.** The server and Ollama need to be running when you sort or sync (changes made while the PC is off are sent next time it's reachable).
+
+On Windows, make the server start with the PC by running this once, in PowerShell opened **as administrator**, from the project folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File server\autostart-windows.ps1 -Model gemma4:e2b
+```
+
+It adds a scheduled task, "ThinkingOut server", that starts the server at boot, hidden (no window to keep open), restarts it if it stops, and logs to `server\data\server.log`. Stop any server you started by hand first. Ollama starts when you log in, so sorting works once you're logged in; sync works from boot. To undo: `Unregister-ScheduledTask -TaskName "ThinkingOut server"`. On macOS/Linux, use a login item or a systemd user service running `node server/server.mjs`.
 
 ### Keeping Claude costs capped
 
