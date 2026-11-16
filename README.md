@@ -1,8 +1,18 @@
 # ThinkingOut
 
-A personal app for thinking out loud. You talk, and it writes down what you say. Then an AI model (on your phone, on your own PC, or Claude) sorts it into clear bullet points: what you're thinking, what you decided, what's still open, what you keep going round in circles on, and one small next step. Anything you need to do goes straight onto the calendar.
+**Think out loud. Stop going round in circles.**
 
-It's built for people who think by speaking rather than with an inner voice, and who want to stop looping through the same thoughts.
+Some people think with a quiet inner voice. Others have to hear themselves say it before it makes sense. ThinkingOut is for the second kind.
+
+Hit the mic and ramble: about the film you want to make, the decision you keep putting off, the week that's getting away from you. ThinkingOut catches every word, then an AI (running free on your phone, on your own PC, or Claude) untangles the mess into something you can actually use:
+
+- **What you're really thinking**, one clear bullet per thought
+- **What you've decided**, and what's still up in the air
+- **What you keep coming back to**: your loops, called out by name, even across older notes on the same topic
+- **One small next step**, so you do something instead of thinking about it all over again
+- **To-dos dropped straight onto your list and calendar**, with "Friday" and "next week" worked out for you
+
+Capturing takes a second and is saved instantly. The sorting happens in the background while you get on with your day. It's monochrome and dot-matrix in the style of Nothing OS, private by default, and free unless you decide otherwise.
 
 ## What it does
 
