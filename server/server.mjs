@@ -21,7 +21,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8787);
 const HOST = process.env.HOST ?? "127.0.0.1"; // reached from outside through Tailscale / Cloudflare, see README
 const OLLAMA_URL = (process.env.OLLAMA_URL ?? "http://127.0.0.1:11434").replace(/\/$/, "");
-const NUM_CTX = Number(process.env.NUM_CTX ?? 16384); // how much text the model holds at once
+// How much text the model holds at once. A note's prompt plus reply fits in 8k;
+// more needs more graphics memory (Ollama itself gives GPUs under 24 GB just 4k).
+const NUM_CTX = Number(process.env.NUM_CTX ?? 8192);
 const DATA_DIR = resolve(process.env.DATA_DIR ?? join(here, "data"));
 // Which web pages may call this server. "*" = any (the key still protects it).
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "*").split(",").map((s) => s.trim());
@@ -103,9 +105,12 @@ async function getModel() {
     if (!models.length) throw new Error("Ollama has no models yet. Pull one first (see README).");
     name = models[0].name;
   }
-  const show = await ollama("/api/show", { model: name });
-  const caps = show.capabilities ?? [];
-  modelInfo = { name, vision: caps.includes("vision"), thinking: caps.includes("thinking") };
+  // What it can do. If Ollama can't say (some cloud models), assume plain text.
+  const caps = (await ollama("/api/show", { model: name }).catch(() => ({}))).capabilities ?? [];
+  // Cloud models ("…:cloud") run on Ollama's servers and don't support
+  // structured outputs, so for those the shape goes in the instructions instead.
+  const cloud = /[:-]cloud$/.test(name);
+  modelInfo = { name, cloud, vision: caps.includes("vision"), thinking: caps.includes("thinking") };
   return modelInfo;
 }
 
@@ -128,11 +133,13 @@ async function runSort(id, { system, prompt, schema, images = [] }) {
     const reply = await ollama("/api/chat", {
       model: model.name,
       stream: false,
-      format: schema, // Ollama keeps the reply to this JSON shape
+      // Local models: Ollama keeps the reply to this JSON shape. Cloud models
+      // can't, so they're shown the shape and asked to follow it.
+      ...(model.cloud ? {} : { format: schema }),
       ...(model.thinking ? { think: false } : {}),
-      options: { temperature: 0.3, num_ctx: NUM_CTX },
+      options: model.cloud ? { temperature: 0.3 } : { temperature: 0.3, num_ctx: NUM_CTX },
       messages: [
-        { role: "system", content: system },
+        { role: "system", content: model.cloud ? `${system}\n\nReply with only a JSON object matching this JSON schema:\n${JSON.stringify(schema)}` : system },
         { role: "user", content: prompt, ...(model.vision && images.length ? { images } : {}) },
       ],
     });
@@ -203,7 +210,7 @@ const server = createServer(async (req, res) => {
     if (what === "health" && req.method === "GET") {
       try {
         const m = await getModel();
-        return send(res, 200, { ok: true, model: m.name, vision: m.vision, sync: true });
+        return send(res, 200, { ok: true, model: m.name, cloud: m.cloud, vision: m.vision, sync: true });
       } catch (err) {
         return send(res, 200, { ok: false, error: `Server is running, but Ollama isn't ready: ${err.message}`, sync: true });
       }

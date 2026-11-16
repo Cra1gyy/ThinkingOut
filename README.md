@@ -56,13 +56,12 @@ The phone runs a small open model ([Qwen 3.5](https://huggingface.co/mlc-ai) thr
 
 It needs nothing but [Node.js](https://nodejs.org) 18 or newer, and everything it stores is in `server/data/` on the PC.
 
-**1. Get a model into Ollama.** Any GGUF model on Hugging Face works:
+**1. Get a model into Ollama.** Two ways:
 
-```bash
-ollama pull hf.co/Qwen/Qwen3-8B-GGUF:Q4_K_M   # a good all-rounder for a PC with ~8 GB+ of graphics memory
-```
+- **Local** (free, private, runs on your PC's graphics card). Best with a supported GPU and about 8 GB or more of graphics memory (see Ollama's [hardware support](https://docs.ollama.com/gpu)). For example `ollama pull gemma4:e2b` (about 7 GB), or any GGUF model from Hugging Face, e.g. `ollama pull hf.co/Qwen/Qwen3-8B-GGUF:Q4_K_M`. Without a strong GPU, local models are slow.
+- **Cloud** (fast on any PC, nothing to download, runs on Ollama's servers). Needs an Ollama account with usage credits or a paid plan: run `ollama signin` once, then use a `:cloud` model such as `gemma4:cloud`. Ollama says it doesn't keep or train on cloud prompts. Cloud models can't be forced into an exact reply format, so the server describes the format to them instead; the odd reply may not come out right, and Re-sort fixes it.
 
-Or one from Ollama's own library, e.g. `ollama pull qwen2.5vl:7b` if you want it to read your screenshots too. Pick a smaller one if your PC struggles.
+**Save & test connection** in the app shows which model the server picked and whether it can read images.
 
 **2. Start the server** (in the project folder):
 
@@ -79,7 +78,7 @@ OLLAMA_MODEL=hf.co/Qwen/Qwen3-8B-GGUF:Q4_K_M npm run server
 $env:OLLAMA_MODEL="hf.co/Qwen/Qwen3-8B-GGUF:Q4_K_M"; npm run server
 ```
 
-On first start it makes a **server key** and prints it (it's also saved in `server/data/token.txt`). Other settings: `PORT` (default 8787), `OLLAMA_URL` (default `http://127.0.0.1:11434`), `NUM_CTX` (how much text the model holds at once, default 16384), `ALLOWED_ORIGINS` (default `*`; set it to `https://cra1gyy.github.io` to only accept the app).
+On first start it makes a **server key** and prints it (it's also saved in `server/data/token.txt`). Other settings: `PORT` (default 8787), `OLLAMA_URL` (default `http://127.0.0.1:11434`), `NUM_CTX` (how much text a local model holds at once, default 8192; more needs more graphics memory), `ALLOWED_ORIGINS` (default `*`; set it to `https://cra1gyy.github.io` to only accept the app).
 
 **3. Give it a secure address your phone can reach.** The app is on an `https://` page, so the server needs an `https://` address too. The easiest private way is **[Tailscale](https://tailscale.com)** (free for personal use):
 
